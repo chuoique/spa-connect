@@ -40,7 +40,8 @@ button.small{font-size:13px;padding:6px 10px}
 .status{margin:0;font-size:14px;font-weight:600;color:var(--muted)}
 .status.ok{color:var(--ok)} .status.bad{color:var(--warn)}
 .now{display:grid;grid-template-columns:1fr auto;align-items:end;gap:4px 12px;border-left:5px solid var(--line);padding:4px 0 4px 12px}
-.now.p2p{border-color:var(--p2p)} .now.mqtt{border-color:var(--mqtt)}
+.now.p2p,.now.lan{border-color:var(--p2p)} .now.mqtt{border-color:var(--mqtt)}
+.hint{margin:0;font-size:13px;color:var(--muted)} .hint a{color:var(--accent);font-family:var(--mono)}
 .now .path{font:700 19px var(--sans)}
 .now .rtt{font:700 28px var(--mono);font-variant-numeric:tabular-nums;grid-row:span 2;text-align:right}
 .now .detail{font:12px var(--mono);color:var(--muted);word-break:break-all}
@@ -76,6 +77,7 @@ pre{margin:0;font:12px/1.45 var(--mono);white-space:pre-wrap;word-break:break-al
       <button id="stop" class="ghost" disabled>Ngắt</button>
     </div>
     <p class="status" id="status">Chưa kết nối</p>
+    <p class="hint" id="lanHint" hidden></p>
     <div class="now" id="now">
       <span class="path" id="nowPath">–</span>
       <span class="rtt" id="nowRtt">–</span>
@@ -112,12 +114,13 @@ pre{margin:0;font:12px/1.45 var(--mono);white-space:pre-wrap;word-break:break-al
   </section>
 </main>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/forge/1.3.1/forge.min.js"></script>
-<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
+<!-- Thư viện chép sẵn trong kho: không phụ thuộc CDN. forge chỉ cần khi trang chạy qua http (bản nội bộ). -->
+<script src="lib/forge.min.js"></script>
+<script src="lib/mqtt.min.js"></script>
 <script>
 (() => {
 const V4ONLY = /[?&#]v4\b/.test(location.search + location.hash);
-const VERSION = 'h3' + (V4ONLY ? ' (P2P CHỈ IPv4)' : '');
+const VERSION = 'h4' + (location.protocol === 'http:' ? ' nội bộ' : '') + (V4ONLY ? ' (P2P CHỈ IPv4)' : '');
 const SALT = 'spa-p2p-v1', ITERS = 100000;
 const ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }];
 // Phải khớp g_br[] trong hybrid_server.c
@@ -134,6 +137,10 @@ const $ = id => document.getElementById(id);
 const enc = new TextEncoder(), dec = new TextDecoder();
 const SUBTLE = !!(window.crypto && crypto.subtle);
 const DEV = 'd' + Math.random().toString(36).slice(2, 10);
+// Trang mở thẳng từ PC trong mạng spa (http://192.168.x.x:8080) -> dùng đường nội bộ, không cần Internet
+const LAN_MODE = location.protocol === 'http:' &&
+  /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|127\.|localhost$)/.test(location.hostname);
+const lan = { ws: null, up: false, welcomed: false, rtts: [], lastPong: 0, lastPing: 0, helloAt: 0, state: 'chưa nối', timer: null };
 
 let key, base, brokers = [], active = null, seq = 0, sent = {}, seen = new Set(), seenQ = [];
 let tStart = 0, switches = 0, tick = null, running = false, killed = null, lastPath = null, statsSent = false;
@@ -233,21 +240,63 @@ function sendP2P(obj) {
   try { p2p.dc.send(JSON.stringify(obj)); return true; } catch { return false; }
 }
 // Gửi bằng đường tốt nhất hiện có
-async function send(obj) { return sendP2P(obj) || sendVia(active, obj); }
+const lanOk = () => lan.up && lan.welcomed && lan.ws && lan.ws.readyState === 1;
+async function sendLAN(obj) {
+  if (!lan.ws || lan.ws.readyState !== 1) return false;
+  obj.dev = DEV; obj.t = Date.now();
+  lan.ws.send(await seal(obj));        // trong mạng nội bộ vẫn mã hóa: người dùng chung Wi-Fi không đọc được
+  return true;
+}
+async function send(obj) { return (lanOk() && await sendLAN(obj)) || sendP2P(obj) || sendVia(active, obj); }
+
+// ---------- đường nội bộ: WebSocket thẳng tới PC ----------
+function connectLAN() {
+  clearTimeout(lan.timer);
+  const t0 = performance.now();
+  const ws = new WebSocket(`ws://${location.host}/ws`);
+  lan.ws = ws; lan.state = 'đang nối…';
+  ws.onopen = () => {
+    lan.up = true; lan.state = `nối ${Math.round(performance.now() - t0)} ms · chờ PC chào`;
+    lan.helloAt = performance.now();
+    sendLAN({ type: 'hello' }); render();
+  };
+  ws.onmessage = async e => { const m = await open(e.data); if (m) onMsg(m, 'lan'); };
+  ws.onclose = () => {
+    if (lan.ws !== ws) return;
+    if (lan.up) log('Mạng nội bộ: mất kết nối');
+    lan.up = false; lan.welcomed = false; lan.state = 'mất kết nối, thử lại sau 2 s';
+    render();
+    if (running) lan.timer = setTimeout(connectLAN, 2000);
+  };
+}
+function showLanHint() {
+  if (LAN_MODE) return;
+  let list = [];
+  try { list = JSON.parse(localStorage.getItem('spa-lan') || '[]'); } catch {}
+  if (!list.length) { $('lanHint').hidden = true; return; }
+  $('lanHint').hidden = false;
+  $('lanHint').textContent = 'Trong spa hoặc khi mất Internet, mở bản nội bộ: ';
+  list.forEach((a, i) => {
+    const link = document.createElement('a'); link.href = `http://${a}/`; link.textContent = a;
+    if (i) $('lanHint').append(' hoặc ');
+    $('lanHint').append(link);
+  });
+}
 
 // ---------- hiển thị ----------
 function render() {
-  const path = p2pOpen() ? 'p2p' : active ? 'mqtt' : null;
+  const path = lanOk() ? 'lan' : p2pOpen() ? 'p2p' : active ? 'mqtt' : null;
   if (path !== lastPath) {
     if (lastPath && path) { switches++; $('switches').textContent = switches; }
-    if (lastPath && path) chat(path === 'p2p' ? '⇄ Chuyển sang P2P trực tiếp' : `⇄ Quay về MQTT (${active.name})`);
+    if (lastPath && path) chat(path === 'lan' ? '⇄ Chuyển sang mạng nội bộ' : path === 'p2p' ? '⇄ Chuyển sang P2P trực tiếp' : `⇄ Quay về MQTT (${active.name})`);
     lastPath = path;
   }
   $('now').className = 'now ' + (path || '');
-  $('nowPath').textContent = path === 'p2p' ? 'P2P trực tiếp' : path === 'mqtt' ? `MQTT qua ${active.name}` : '–';
-  const r = path === 'p2p' ? median(p2p.rtts) : path === 'mqtt' ? median(active.rtts) : null;
+  $('nowPath').textContent = path === 'lan' ? 'Mạng nội bộ' : path === 'p2p' ? 'P2P trực tiếp' : path === 'mqtt' ? `MQTT qua ${active.name}` : '–';
+  const r = path === 'lan' ? median(lan.rtts) : path === 'p2p' ? median(p2p.rtts) : path === 'mqtt' ? median(active.rtts) : null;
   $('nowRtt').textContent = r != null ? r + ' ms' : '–';
-  $('nowDetail').textContent = path === 'p2p' ? p2p.pair : path === 'mqtt' ? 'qua máy chuyển tiếp công cộng, đã mã hóa' : 'Đường đang dùng';
+  $('nowDetail').textContent = path === 'lan' ? `thẳng tới PC ${location.host}, không cần Internet` : path === 'p2p' ? p2p.pair
+    : path === 'mqtt' ? 'qua máy chuyển tiếp công cộng, đã mã hóa' : 'Đường đang dùng';
   $('send').disabled = !path;
 
   const ul = $('links'); ul.innerHTML = '';
@@ -262,6 +311,7 @@ function render() {
   };
   const sep = t => { const li = document.createElement('li'); li.className = 'sep'; li.textContent = t; ul.append(li); };
   sep('ĐƯỜNG TRỰC TIẾP');
+  if (LAN_MODE) row('Mạng nội bộ', path === 'lan', lanOk() ? 'ok' : lan.up ? 'up' : running ? 'down' : '', lan.state, median(lan.rtts));
   row('P2P', path === 'p2p', p2p.state === 'open' ? 'ok' : p2p.state === 'trying' ? 'up' : p2p.state === 'failed' ? 'down' : '',
       p2p.note, median(p2p.rtts));
   sep('MÁY CHUYỂN TIẾP MQTT');
@@ -405,8 +455,8 @@ function failP2P(why) {
 
 // ---------- nhận tin (từ MQTT hoặc P2P) ----------
 async function onMsg(m, via) {
-  const vname = via === 'p2p' ? 'P2P' : via.name;
-  if (m.type === 'presence') { log(`[${vname}] PC ${m.online ? 'đang chạy' : 'đã tắt'}`); if (!m.online && via !== 'p2p') { via.welcomed = false; via.state = 'PC báo tắt'; render(); } return; }
+  const vname = via === 'p2p' ? 'P2P' : via === 'lan' ? 'mạng nội bộ' : via.name;
+  if (m.type === 'presence') { log(`[${vname}] PC ${m.online ? 'đang chạy' : 'đã tắt'}`); if (!m.online && via.name) { via.welcomed = false; via.state = 'PC báo tắt'; render(); } return; }
   if (m.to && m.to !== DEV) return;
   if (m.not === DEV) return;
   if (via !== 'p2p' && m.t && Math.abs(Date.now() - m.t) > 60000) return;
@@ -414,15 +464,29 @@ async function onMsg(m, via) {
     const p = sent[m.seq]; if (!p || p.via !== via) return;
     delete sent[m.seq];
     const r = Math.round(performance.now() - p.t);
-    const arr = via === 'p2p' ? p2p.rtts : via.rtts;
-    arr.push(r); if (arr.length > 20) arr.shift();
-    if (via === 'p2p') { p2p.lastPong = performance.now(); if (p2p.rtts.length === 10 && !statsSent) { statsSent = true; sendStats(); } }
-    else via.lastPong = performance.now();
+    const obj = via === 'p2p' ? p2p : via === 'lan' ? lan : via;
+    obj.rtts.push(r); if (obj.rtts.length > 20) obj.rtts.shift();
+    obj.lastPong = performance.now();
+    if (via === 'p2p' && p2p.rtts.length === 10 && !statsSent) { statsSent = true; sendStats(); }
+    if (via === 'lan' && lan.rtts.length === 10 && !statsSent) { statsSent = true; sendStats(); }
     render();
     return;
   }
   if (m.mid) { if (seen.has(m.mid)) return; seen.add(m.mid); seenQ.push(m.mid); if (seenQ.length > 300) seen.delete(seenQ.shift()); }
-  if (m.type === 'welcome' && via !== 'p2p') {
+  // PC báo địa chỉ nội bộ của nó -> nhớ lại, để khi mất Internet vẫn biết đường vào
+  if (m.type === 'welcome' && Array.isArray(m.lan) && m.lan.length) {
+    try { localStorage.setItem('spa-lan', JSON.stringify(m.lan)); } catch {}
+    showLanHint();
+  }
+  if (m.type === 'welcome' && via === 'lan') {
+    lan.welcomed = true; lan.lastPong = performance.now();
+    lan.state = `PC chào sau ${Math.round(performance.now() - lan.helloAt)} ms`;
+    $('num').textContent = '#' + m.num;
+    if ($('tMqtt').textContent === '–') $('tMqtt').textContent = `${since()} (qua mạng nội bộ)`;
+    status('Đã thông với PC qua mạng nội bộ', 'ok');
+    log(`Mạng nội bộ: PC chào lại (${lan.state})`);
+    render();
+  } else if (m.type === 'welcome' && via !== 'p2p') {
     const ms = Math.round(performance.now() - via.helloAt);
     via.welcomed = true; via.lastPong = performance.now();
     via.state = `nối ${via.tConn} ms · PC chào ${ms} ms`;
@@ -445,19 +509,25 @@ async function onMsg(m, via) {
 
 function sendStats() {
   const bs = brokers.map(b => `${b.name} ${b.welcomed ? (median(b.rtts) ?? '?') + 'ms' : '✕'}`).join(', ');
-  send({ type: 'stats', text: `[${VERSION}] MQTT thông ${$('tMqtt').textContent} · P2P mở ${$('tP2P').textContent} · khứ hồi P2P ${median(p2p.rtts)}ms · ${p2p.pair} · MQTT: ${bs}` });
+  send({ type: 'stats', text: `[${VERSION}] ${LAN_MODE ? `nội bộ khứ hồi ${median(lan.rtts)}ms · ` : ''}thông ${$('tMqtt').textContent} · P2P mở ${$('tP2P').textContent} · khứ hồi P2P ${median(p2p.rtts)}ms · ${p2p.pair} · MQTT: ${bs}` });
 }
 
 // ---------- vòng lặp 0,5 giây ----------
 function ping(via) {
   const n = ++seq; sent[n] = { t: performance.now(), via };
   if (via === 'p2p') sendP2P({ type: 'ping', seq: n });
+  else if (via === 'lan') sendLAN({ type: 'ping', seq: n });
   else sendVia(via, { type: 'ping', seq: n, active: via === active }, 0);
 }
 function loop() {
   if (!running || document.hidden) return;
   const now = performance.now();
   for (const k in sent) if (now - sent[k].t > 15000) delete sent[k];
+  // Mạng nội bộ: ping mỗi 2 giây; im quá lâu thì đóng để nối lại
+  if (lanOk()) {
+    if (now - lan.lastPing >= 2000) { lan.lastPing = now; ping('lan'); }
+    if (now - lan.lastPong > DEAD_MS) { log('Mạng nội bộ: PC không trả lời'); try { lan.ws.close(); } catch {} }
+  }
   // P2P: ping mỗi 2 giây; im quá lâu thì bỏ, quay về MQTT
   if (p2pOpen()) {
     if (now - p2p.lastPing >= 2000) { p2p.lastPing = now; ping('p2p'); }
@@ -478,7 +548,8 @@ function loop() {
     ping(b);
   }
   // Thử (lại) P2P khi đã có MQTT
-  if (active && active.welcomed && (p2p.state === 'off' || p2p.state === 'failed') && now >= p2p.retryAt) startP2P();
+  // (đang có mạng nội bộ thì P2P không cần thiết)
+  if (!lanOk() && active && active.welcomed && (p2p.state === 'off' || p2p.state === 'failed') && now >= p2p.retryAt) startP2P();
   if (p2p.state === 'failed') {
     const s = Math.max(0, Math.round((p2p.retryAt - now) / 1000));
     p2p.note = p2p.note.replace(/thử lại sau \d+ s/, `thử lại sau ${s} s`);
@@ -488,7 +559,7 @@ function loop() {
 
 // ---------- nút ----------
 async function connect() {
-  if (!window.mqtt) { status('Chưa tải được thư viện MQTT. Kiểm tra mạng rồi tải lại trang.', 'bad'); return; }
+  if (!window.mqtt) { status('Chưa tải được thư viện MQTT. Tải lại trang.', 'bad'); return; }
   const code = $('code').value.trim();
   if (code.replace(/[^A-Za-z0-9]/g, '').length < 8) { status('Nhập đủ 8 ký tự mã ghép đôi.', 'bad'); return; }
   try { localStorage.setItem('spa-code', code); } catch {}   // nhớ mã: lần sau mở app tự kết nối
@@ -497,16 +568,26 @@ async function connect() {
   tStart = performance.now(); statsSent = false; $('tMqtt').textContent = '–'; $('tP2P').textContent = '–';
   status('Đang tạo khóa…');
   try { await derive(code); } catch (e) { status(e.message, 'bad'); $('go').disabled = false; return; }
-  log(`Khóa xong sau ${since()}. Nối cùng lúc ${LIST.length} máy MQTT`);
-  status(`Đang nối ${LIST.length} máy MQTT cùng lúc…`);
   running = true;
   Object.assign(p2p, { state: 'off', note: 'chờ MQTT thông', rtts: [], delay: 5000, retryAt: 0, tries: 0, pair: '' });
+  if (LAN_MODE) {
+    Object.assign(lan, { rtts: [], up: false, welcomed: false });
+    log(`Khóa xong sau ${since()}. Nối mạng nội bộ ${location.host}, đồng thời ${LIST.length} máy MQTT (nếu có Internet)`);
+    status('Đang nối mạng nội bộ…');
+    connectLAN();
+  } else {
+    log(`Khóa xong sau ${since()}. Nối cùng lúc ${LIST.length} máy MQTT`);
+    status(`Đang nối ${LIST.length} máy MQTT cùng lúc…`);
+  }
   brokers = LIST.map(makeBroker);
   tick = setInterval(loop, 500);
   render();
 }
 function teardown() {
   running = false; clearInterval(tick); closePC();
+  clearTimeout(lan.timer);
+  if (lan.ws) { const w = lan.ws; lan.ws = null; try { w.close(); } catch {} }
+  lan.up = lan.welcomed = false; lan.state = 'chưa nối';
   for (const b of brokers) { try { b.client.end(true); } catch {} }
   brokers = []; active = null; killed = null; sent = {}; lastPath = null; p2p.state = 'off'; p2p.note = 'chưa thử';
   render();
@@ -536,11 +617,14 @@ document.addEventListener('visibilitychange', () => {
   const now = performance.now();
   for (const b of brokers) if (b.up) { b.helloAt = now; sendVia(b, { type: 'hello' }); }
   if (active) active.lastPong = now;                         // tránh chuyển nhầm vì thời gian ngủ
+  if (lanOk()) { lan.lastPong = now; ping('lan'); }          // WebSocket bị iOS cắt thì onclose sẽ tự nối lại
+  else if (LAN_MODE && (!lan.ws || lan.ws.readyState > 1)) connectLAN();
   if (p2pOpen()) { p2p.lastPong = now; ping('p2p'); }         // còn sống thì sẽ có pong; không thì 7 s sau quay về MQTT
   else if (p2p.state === 'failed') p2p.retryAt = now + 1000;  // quay lại trang: thử P2P ngay
 });
 window.addEventListener('pagehide', () => send({ type: 'bye' }));
 
+showLanHint();
 // Đã từng nhập mã -> điền sẵn và tự kết nối ngay khi mở
 let saved = null;
 try { saved = localStorage.getItem('spa-code') || (JSON.parse(localStorage.getItem('spa-kc') || 'null') || {}).n; } catch {}
