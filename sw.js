@@ -1,7 +1,7 @@
 // Service worker: giữ bản sao trang + thư viện trong máy.
-// Mở app sẽ dùng ngay bản trong máy (nhanh, chạy được cả khi GitHub Pages sập),
+// Mở app luôn dùng ngay bản trong máy (nhanh, chạy được cả khi mất Internet / GitHub sập),
 // đồng thời tải bản mới ở nền cho lần mở sau.
-const CACHE = 'spa-v4';
+const CACHE = 'spa-v5';
 const FILES = [
   './',
   './index.html',
@@ -23,13 +23,29 @@ self.addEventListener('activate', e => {
     .then(() => self.clients.claim()));
 });
 
+// Tải từ mạng nhưng chỉ chờ tối đa `ms`: Wi-Fi còn mà mất Internet thì yêu cầu hay bị treo thay vì báo lỗi ngay
+function fetchWithin(req, ms) {
+  return new Promise(res => {
+    const t = setTimeout(() => res(null), ms);
+    fetch(req).then(r => { clearTimeout(t); res(r); }, () => { clearTimeout(t); res(null); });
+  });
+}
+
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
-  if (url.origin !== location.origin) return;   // MQTT, STUN... không đi qua đây
+  if (url.origin !== location.origin) return;   // MQTT, Nostr, STUN... không đi qua đây
+  const isPage = e.request.mode === 'navigate';
   e.respondWith(caches.open(CACHE).then(async c => {
-    const hit = await c.match(e.request, { ignoreSearch: true });
-    const fresh = fetch(e.request).then(r => { if (r.ok) c.put(e.request, r.clone()); return r; }).catch(() => null);
-    return hit || (await fresh) || new Response('Không có mạng và chưa có bản lưu', { status: 503 });
+    // Mở trang (dù địa chỉ có thêm ?… hay thiếu dấu /) -> luôn dùng trang đã lưu
+    const hit = await c.match(e.request, { ignoreSearch: true }) ||
+                (isPage ? (await c.match('./', { ignoreSearch: true })) || (await c.match('./index.html')) : null);
+    const fresh = fetchWithin(e.request, hit ? 15000 : 3000).then(r => {
+      if (r && r.ok) c.put(isPage ? './' : e.request, r.clone());
+      return r;
+    });
+    if (hit) { e.waitUntil(fresh); return hit; }
+    return (await fresh) || new Response('Không có mạng và chưa có bản lưu. Hãy mở app một lần khi có Internet.',
+      { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
   }));
 });
