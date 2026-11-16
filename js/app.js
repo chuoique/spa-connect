@@ -7,7 +7,7 @@
  */
 (() => {
 'use strict';
-const APP_VERSION = 'Spa 0.18';
+const APP_VERSION = 'Spa 0.19';
 const $ = s => document.querySelector(s);
 
 // ---------- tiện ích giao diện ----------
@@ -338,12 +338,20 @@ function apptSheet(a) {
 
 // ---------- khách hàng ----------
 let custQ = '';
+// Hình người: sáng (màu thương hiệu) = khách có tài khoản app, mờ = chưa có
+function personIcon(on) {
+  const s = h('span', { class: 'cav' + (on ? ' app' : ''), title: on ? 'Có tài khoản app' : 'Chưa có tài khoản app' });
+  s.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="8" r="4.2" fill="currentColor"/>' +
+    '<path d="M3.5 21c0-4.7 3.8-7.6 8.5-7.6s8.5 2.9 8.5 7.6z" fill="currentColor"/></svg>';
+  return s;
+}
 async function vCustomers(el) {
   const q = h('input', { placeholder: 'Tìm tên hoặc số điện thoại…', value: custQ, type: 'search' });
   const box = h('div', { class: 'list' });
   const load = () => api('customers.list', { q: custQ, limit: 200 }).then(rows => box.replaceChildren(...(rows.length ? rows.map(c =>
     h('div', { class: 'item', onclick: () => customerDetail(c.id) },
-      h('div', { class: 'l' }, '👤'), h('div', { class: 't' }, c.name), h('div', { class: 'r muted' }, c.points ? `${c.points} điểm` : ''),
+      h('div', { class: 'l' }, personIcon(c.has_app)),
+      h('div', { class: 't' }, c.name), h('div', { class: 'r muted' }, c.points ? `${c.points} điểm` : ''),
       h('div', { class: 's' }, [c.phone, c.code].filter(Boolean).join(' · ') || '—'))) : [h('div', { class: 'empty' }, custQ ? 'Không tìm thấy' : 'Chưa có khách')])));
   let t;
   q.addEventListener('input', () => { custQ = q.value.trim(); clearTimeout(t); t = setTimeout(load, 250); });

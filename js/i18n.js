@@ -159,6 +159,7 @@ const EN = {
   'Nhân sự': 'Staff', 'Mỗi người một tài khoản riêng.': 'One account per person.',
   'Tài khoản khách hàng: khách tự đặt lịch, xem lịch và điểm của mình trên app.': 'Customer accounts: customers book, see their appointments and points in the app.',
   'Chưa có tài khoản khách hàng': 'No customer accounts yet', 'Chưa có tài khoản công ty': 'No company accounts yet', 'Công ty': 'Company',
+  'Có tài khoản app': 'Has an app account', 'Chưa có tài khoản app': 'No app account',
   'Khóa': 'Locked', 'Máy chủ & sao lưu': 'Servers & backup', 'Tất cả nhân viên': 'All staff', 'Chưa có hóa đơn': 'No invoices yet',
   'Chưa có': 'None yet', 'Chưa có dịch vụ': 'No services yet', 'Chưa có dịch vụ. Thêm dịch vụ đầu tiên.': 'No services yet. Add the first one.',
   'Khung báo cáo cơ bản — sẽ bổ sung dần (theo tháng, công nợ, hoa hồng nhân viên…).': 'Basic report view — more coming (monthly, debts, staff commissions…).',

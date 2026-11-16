@@ -156,6 +156,9 @@ header.top .spa,header.top .who{white-space:nowrap;overflow:hidden;text-overflow
 .flag{border:2px solid transparent;background:none;padding:1px;border-radius:5px;cursor:pointer;line-height:0;opacity:.55}
 .flag img{width:26px;height:17px;border-radius:2px;display:block;box-shadow:0 0 0 1px rgba(0,0,0,.15)}
 .flag.on{opacity:1;border-color:var(--brand)}
+/* biểu tượng khách: mờ = chưa có tài khoản app, sáng (vòng màu thương hiệu) = đã có */
+.cav{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:50%;color:var(--muted);opacity:.35}
+.cav.app{color:var(--brand);opacity:1;background:var(--brand-soft);box-shadow:0 0 0 2px var(--brand),0 0 12px var(--brand)}
 /* nút chọn liền khối: [Nhân sự][Khách hàng][+ Thêm tài khoản] */
 .seg{display:flex;border-radius:9px;overflow:hidden;border:1px solid var(--brand);min-width:0}
 .seg button{border:0;background:var(--card);color:var(--brand);font-weight:600;padding:10px 12px;cursor:pointer;flex:1 1 0;min-width:0;
