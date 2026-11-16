@@ -1,7 +1,7 @@
 // Service worker: giữ bản sao trang + thư viện trong máy.
 // Mở app luôn dùng ngay bản trong máy (nhanh, chạy được cả khi mất Internet / GitHub sập),
 // đồng thời tải bản mới ở nền cho lần mở sau.
-const CACHE = 'spa-v16';
+const CACHE = 'spa-v17';
 const FILES = [
   './',
   './index.html',
@@ -19,7 +19,9 @@ const FILES = [
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  // cache:'reload' = lấy thẳng từ mạng, bỏ qua bộ nhớ đệm trình duyệt (GitHub cho giữ 10 phút) -> không lưu nhầm bản cũ
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -32,7 +34,8 @@ self.addEventListener('activate', e => {
 function fetchWithin(req, ms) {
   return new Promise(res => {
     const t = setTimeout(() => res(null), ms);
-    fetch(req).then(r => { clearTimeout(t); res(r); }, () => { clearTimeout(t); res(null); });
+    // no-cache: luôn hỏi lại máy chủ GitHub (có bản mới thì lấy, không thì chỉ tốn vài byte)
+    fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' }).then(r => { clearTimeout(t); res(r); }, () => { clearTimeout(t); res(null); });
   });
 }
 

@@ -7,7 +7,7 @@
  */
 (() => {
 'use strict';
-const APP_VERSION = 'Spa 0.10';
+const APP_VERSION = 'Spa 0.11';
 const $ = s => document.querySelector(s);
 
 // ---------- tiện ích giao diện ----------
@@ -1112,5 +1112,20 @@ function boot() {
   Conn.start().catch(e => screenPair(e.message));
 }
 boot();
-if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    // quay lại app (hoặc mỗi 30 phút) -> hỏi GitHub có bản mới không
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) reg.update().catch(() => {}); });
+    setInterval(() => reg.update().catch(() => {}), 30 * 60000);
+  }).catch(() => {});
+  // bản mới vừa cài xong -> mời tải lại (không tự tải lại để không mất chữ đang gõ)
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || document.getElementById('upd')) return;
+    const b = h('div', { id: 'upd', style: 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:99;' +
+      'background:var(--accent,#8a6d24);color:#fff;padding:10px 16px;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.25);display:flex;gap:12px;align-items:center;font-size:14px' },
+      'Đã có bản mới của app', h('button', { class: 'btn small', style: 'background:#fff;color:#000;padding:6px 12px', onclick: () => location.reload() }, 'Tải lại'));
+    document.body.appendChild(b);
+  });
+}
 })();
