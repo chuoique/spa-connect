@@ -1,13 +1,13 @@
 /*
  * app.js - giao diện app spa.
- * Màn hình: ghép máy -> (tạo chủ spa) -> đăng nhập -> giao diện theo vai trò.
+ * Màn hình: ghép máy -> (tạo quản trị) -> đăng nhập -> giao diện theo vai trò.
  * Quyền thật sự được máy chủ kiểm tra; ở đây chỉ ẩn bớt những gì vai trò không dùng.
  *
  * Thêm màn hình mới: viết hàm vXxx(el), thêm vào VIEWS và TABS.
  */
 (() => {
 'use strict';
-const APP_VERSION = 'Spa 0.3';
+const APP_VERSION = 'Spa 0.4';
 const $ = s => document.querySelector(s);
 
 // ---------- tiện ích giao diện ----------
@@ -32,7 +32,10 @@ const dayLabel = ms => { const d = new Date(ms); return `${WD[d.getDay()]} ${pad
 const dayStart = ms => { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); };
 const dateVal = ms => { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 const fromInputs = (date, time) => new Date(`${date}T${time || '00:00'}`).getTime();
-const ROLE = { owner: 'Chủ spa', reception: 'Lễ tân', technician: 'Kỹ thuật viên', customer: 'Khách hàng' };
+const ROLE = { chairman: 'Chủ tịch HĐQT', ceo: 'Tổng giám đốc', owner: 'Trợ lý TGĐ', reception: 'Lễ tân', technician: 'Kỹ thuật viên', customer: 'Khách hàng' };
+// 3 cấp quản trị đều toàn quyền (máy chủ kiểm tra); cấp thấp không cấp/sửa được tài khoản cấp cao hơn
+const RANK = { chairman: 3, ceo: 2, owner: 1 };
+const myRole = () => (S.me && RANK[S.me.role]) ? 'owner' : (S.me && S.me.role);
 const STATUS = { requested: 'Chờ xác nhận', booked: 'Đã đặt', arrived: 'Đã đến', in_service: 'Đang làm', done: 'Xong', cancelled: 'Đã hủy', no_show: 'Không đến' };
 const METHOD = { cash: 'Tiền mặt', transfer: 'Chuyển khoản', card: 'Thẻ' };
 const chip = st => h('span', { class: 'chip ' + st }, STATUS[st] || st);
@@ -115,21 +118,21 @@ function screenPair(msg) {
   };
   $('#app').replaceChildren(h('div', { class: 'wrap center' }, h('div', { class: 'card' },
     LOGO(), h('h1', {}, 'Ghép máy với spa'),
-    h('p', { class: 'muted small' }, 'Nhập mã ghép máy do chủ spa tạo (mục Thiết bị), hoặc mã khởi tạo in trên cửa sổ máy chủ khi chạy lần đầu. Mỗi máy chỉ cần ghép một lần.'),
+    h('p', { class: 'muted small' }, 'Nhập mã ghép máy do quản trị tạo (mục Thiết bị), hoặc mã khởi tạo in trên cửa sổ máy chủ khi chạy lần đầu. Mỗi máy chỉ cần ghép một lần.'),
     field('Mã ghép máy', code), field('Tên máy này', name), btn, st,
     h('p', { class: 'small muted' }, APP_VERSION))));
 }
 
-// ---------- màn hình: tạo chủ spa / đăng nhập ----------
+// ---------- màn hình: tạo quản trị / đăng nhập ----------
 function screenSetup() {
   const un = h('input', { autocomplete: 'username', autocapitalize: 'none' }), dn = h('input', {}), pw = h('input', { type: 'password', autocomplete: 'new-password' }), pw2 = h('input', { type: 'password', autocomplete: 'new-password' });
-  const btn = h('button', { class: 'btn' }, 'Tạo tài khoản chủ spa');
+  const btn = h('button', { class: 'btn' }, 'Tạo tài khoản quản trị');
   btn.onclick = () => {
     if (pw.value !== pw2.value) return toast('Hai lần nhập mật khẩu không khớp', true);
-    busy(btn, api('auth.setup_owner', { username: un.value.trim(), display_name: dn.value.trim(), password: pw.value }).then(u => { S.me = u; toast('Đã tạo tài khoản chủ spa'); screenMain(); }).catch(() => {}));
+    busy(btn, api('auth.setup_owner', { username: un.value.trim(), display_name: dn.value.trim(), password: pw.value }).then(u => { S.me = u; toast('Đã tạo tài khoản quản trị'); screenMain(); }).catch(() => {}));
   };
   $('#app').replaceChildren(h('div', { class: 'wrap center' }, h('div', { class: 'card' },
-    LOGO(), h('h1', {}, 'Chào mừng!'), h('p', { class: 'muted small' }, 'Máy này được ghép bằng mã khởi tạo. Hãy tạo tài khoản chủ spa: tài khoản có toàn quyền, dùng để thêm nhân viên, dịch vụ và ghép các máy khác.'),
+    LOGO(), h('h1', {}, 'Chào mừng!'), h('p', { class: 'muted small' }, 'Máy này được ghép bằng mã khởi tạo. Hãy tạo tài khoản quản trị: tài khoản có toàn quyền, dùng để thêm nhân viên, dịch vụ và ghép các máy khác.'),
     field('Tên đăng nhập', un), field('Tên hiển thị', dn), field('Mật khẩu (ít nhất 6 ký tự)', pw), field('Nhập lại mật khẩu', pw2), btn)));
 }
 function screenLogin() {
@@ -171,15 +174,15 @@ function connBadge() {
   return b;
 }
 function screenMain() {
-  const tabs = TABS[S.me.role] || ['system'];
+  const tabs = TABS[myRole()] || ['system'];
   if (!tabs.includes(S.tab)) S.tab = tabs[0];
   $('#app').replaceChildren(
     h('header', { class: 'top' }, h('div', { class: 'in' },
       h('img', { class: 'hlogo', src: 'icon-192.png', alt: '' }),
       h('div', { class: 'grow' }, h('div', { class: 'spa' }, S.welcome ? S.welcome.spa_name : 'Spa'),
         h('div', { class: 'who' }, `${S.me.display_name || S.me.username} · ${ROLE[S.me.role] || S.me.role}`)),
-      S.me.role !== 'customer' && h('button', { class: 'hbtn', title: 'Tìm nhanh', 'aria-label': 'Tìm nhanh', onclick: quickSearch }, '🔍'),
-      S.me.role !== 'customer' && h('button', { class: 'hbtn', title: 'Quét mã', 'aria-label': 'Quét mã', onclick: scanSheet }, '📷'),
+      myRole() !== 'customer' && h('button', { class: 'hbtn', title: 'Tìm nhanh', 'aria-label': 'Tìm nhanh', onclick: quickSearch }, '🔍'),
+      myRole() !== 'customer' && h('button', { class: 'hbtn', title: 'Quét mã', 'aria-label': 'Quét mã', onclick: scanSheet }, '📷'),
       connBadge())),
     h('div', { id: 'banner' }),
     h('main', { class: 'wrap', id: 'view' }),
@@ -190,7 +193,7 @@ function screenMain() {
 }
 function go(tab) {
   S.tab = tab;
-  document.querySelectorAll('nav.tabs button').forEach((b, i) => b.classList.toggle('on', (TABS[S.me.role] || [])[i] === tab));
+  document.querySelectorAll('nav.tabs button').forEach((b, i) => b.classList.toggle('on', (TABS[myRole()] || [])[i] === tab));
   const el = $('#view');
   if (!el) return;
   el.replaceChildren(h('div', { class: 'empty' }, 'Đang tải…'));
@@ -198,7 +201,7 @@ function go(tab) {
   (VIEWS[tab] || vSystem)(el).catch(e => { el.replaceChildren(h('div', { class: 'card' }, h('p', {}, 'Không tải được: ' + e.message), h('button', { class: 'btn ghost small', onclick: () => go(tab) }, 'Thử lại'))); });
 }
 async function loadCaches() {
-  if (S.me.role === 'customer') { S.services = await api('services.list', {}, true).catch(() => []); return; }
+  if (myRole() === 'customer') { S.services = await api('services.list', {}, true).catch(() => []); return; }
   [S.services, S.staff] = await Promise.all([api('services.list', {}, true).catch(() => []), api('staff.list', {}, true).catch(() => [])]);
 }
 const TOPIC_VIEWS = { appointments: ['appts', 'mine', 'my', 'reports'], customers: ['customers'], invoices: ['invoices', 'reports'], services: ['services'], staff: ['staff'],
@@ -232,8 +235,8 @@ async function vAppts(el, mineOnly) {
     h('div', { class: 'list' }, items.length ? items : h('div', { class: 'empty' }, 'Không có lịch hẹn'))));
 }
 function apptDetail(a, mineOnly) {
-  const can = ['owner', 'reception'].includes(S.me.role);
-  const statusBtns = (mineOnly || S.me.role === 'technician') ? ['arrived', 'in_service', 'done'] : ['booked', 'arrived', 'in_service', 'done', 'no_show', 'cancelled'];
+  const can = ['owner', 'reception'].includes(myRole());
+  const statusBtns = (mineOnly || myRole() === 'technician') ? ['arrived', 'in_service', 'done'] : ['booked', 'arrived', 'in_service', 'done', 'no_show', 'cancelled'];
   let close;
   const setStatus = st => api('appointments.status', { id: a.id, status: st }).then(() => { toast('Đã cập nhật'); close(); go(S.view); }).catch(() => {});
   close = sheet(`${hm(a.start_at)} · ${a.customer_name || ''}`, h('div', { style: 'display:grid;gap:10px' },
@@ -260,7 +263,7 @@ function apptDetail(a, mineOnly) {
       } }, 'Trừ gói'),
       can && h('button', { class: 'btn ghost', onclick: () => { close(); apptSheet(a); } }, 'Sửa'),
       a.customer_id && h('button', { class: 'btn ghost', onclick: () => { close(); customerDetail(a.customer_id); } }, 'Hồ sơ khách'),
-      ['owner', 'technician'].includes(S.me.role) && a.customer_id && h('button', { class: 'btn ghost', onclick: () => { close(); noteSheet(a.customer_id, a.id); } }, 'Ghi chú lịch trình'),
+      ['owner', 'technician'].includes(myRole()) && a.customer_id && h('button', { class: 'btn ghost', onclick: () => { close(); noteSheet(a.customer_id, a.id); } }, 'Ghi chú lịch trình'),
       can && h('button', { class: 'btn bad', onclick: () => { if (window.confirm('Xóa lịch hẹn này?')) api('appointments.delete', { id: a.id }).then(() => { close(); go(S.view); }).catch(() => {}); } }, 'Xóa'))));
 }
 function customerPicker(initial, onPick) {
@@ -289,7 +292,7 @@ function apptSheet(a) {
   const d = h('input', { type: 'date', value: dateVal(a.start_at || Date.now()) });
   const t = h('input', { type: 'time', value: hm(a.start_at || Date.now()), step: 300 });
   const sv = combo(S.services, s => `${s.name} · ${s.duration_min} phút · ${money(s.price)}`, a.service_id, 'Gõ tên dịch vụ…');
-  const st = combo(S.staff.filter(u => ['technician', 'owner'].includes(u.role) && u.active), u => u.display_name || u.username, a.staff_id, 'Gõ tên kỹ thuật viên (để trống: chưa phân công)');
+  const st = combo(S.staff.filter(u => (u.role === 'technician' || RANK[u.role]) && u.active), u => u.display_name || u.username, a.staff_id, 'Gõ tên kỹ thuật viên (để trống: chưa phân công)');
   const note = h('textarea', { value: a.note || '' });
   const btn = h('button', { class: 'btn' }, isNew ? 'Thêm lịch hẹn' : 'Lưu');
   let close;
@@ -320,12 +323,12 @@ async function vCustomers(el) {
   let t;
   q.addEventListener('input', () => { custQ = q.value.trim(); clearTimeout(t); t = setTimeout(load, 250); });
   el.replaceChildren(h('div', { class: 'card' }, q,
-    ['owner', 'reception'].includes(S.me.role) && h('button', { class: 'btn', onclick: () => customerEdit({}) }, '+ Thêm khách'), box));
+    ['owner', 'reception'].includes(myRole()) && h('button', { class: 'btn', onclick: () => customerEdit({}) }, '+ Thêm khách'), box));
   await load();
 }
 async function customerDetail(id) {
   const c = await api('customers.get', { id });
-  const can = ['owner', 'reception'].includes(S.me.role);
+  const can = ['owner', 'reception'].includes(myRole());
   let close;
   close = sheet(c.name, h('div', { style: 'display:grid;gap:12px' },
     c.code && h('div', { class: 'row' }, h('div', { class: 'qr', style: 'flex:none' }, qrImg(c.code)),
@@ -349,8 +352,8 @@ async function customerDetail(id) {
     h('div', { class: 'row' },
       can && h('button', { class: 'btn', onclick: () => { close(); apptSheet({ customer_id: c.id, customer_name: c.name, start_at: Date.now() + 3600000 }); } }, 'Đặt lịch'),
       can && h('button', { class: 'btn ghost', onclick: () => { close(); customerEdit(c); } }, 'Sửa'),
-      ['owner', 'technician'].includes(S.me.role) && h('button', { class: 'btn ghost', onclick: () => { close(); noteSheet(c.id); } }, 'Ghi chú liệu trình'),
-      S.me.role === 'owner' && h('button', { class: 'btn bad', onclick: () => { if (window.confirm('Xóa khách này?')) api('customers.delete', { id: c.id }).then(() => { close(); go('customers'); }).catch(() => {}); } }, 'Xóa')),
+      ['owner', 'technician'].includes(myRole()) && h('button', { class: 'btn ghost', onclick: () => { close(); noteSheet(c.id); } }, 'Ghi chú liệu trình'),
+      myRole() === 'owner' && h('button', { class: 'btn bad', onclick: () => { if (window.confirm('Xóa khách này?')) api('customers.delete', { id: c.id }).then(() => { close(); go('customers'); }).catch(() => {}); } }, 'Xóa')),
     h('h3', {}, 'Lịch sử'),
     h('div', { class: 'list' }, (c.appointments || []).length ? c.appointments.map(a => h('div', { class: 'item' },
       h('div', { class: 'l' }, dmy(a.start_at).slice(0, 5)), h('div', { class: 't' }, a.service_name || '—'), h('div', { class: 'r' }, chip(a.status)),
@@ -387,7 +390,7 @@ function packageSheet(p, c, appointment) {
     h('div', { class: 'row' }, h('div', { class: 'grow' }, field('Số tiền (đ)', amt)), h('div', { class: 'grow' }, field('Số buổi', ses))),
     field('Lý do', reason),
     h('div', { class: 'row' }, h('button', { class: 'btn', onclick: () => go2(-1) }, '− Trừ gói'),
-      ['owner', 'reception'].includes(S.me.role) && h('button', { class: 'btn ghost', onclick: () => go2(1) }, '+ Cộng thêm')),
+      ['owner', 'reception'].includes(myRole()) && h('button', { class: 'btn ghost', onclick: () => go2(1) }, '+ Cộng thêm')),
     h('h3', {}, 'Lịch sử'), hist));
   api('packages.moves', { id: p.id }, true).then(rows => hist.replaceChildren(...(rows.length ? rows.map(m => h('div', { class: 'item' },
     h('div', { class: 'l' }, dmy(m.at).slice(0, 5)), h('div', { class: 't', style: 'white-space:normal' }, m.reason || ''),
@@ -473,7 +476,7 @@ async function invoiceDetail(id) {
     h('div', { class: 'list' }, (i.items || []).map(it => h('div', { class: 'item' }, h('div', { class: 'l' }, `${it.qty}×`), h('div', { class: 't' }, it.name), h('div', { class: 'r' }, money(it.amount)), h('div', { class: 's' }, money(it.price))))),
     h('dl', { class: 'kv' }, h('dt', {}, 'Tạm tính'), h('dd', {}, money(i.subtotal)), h('dt', {}, 'Giảm giá'), h('dd', {}, money(i.discount)),
       i.vat && h('dt', {}, 'VAT'), i.vat && h('dd', {}, money(i.vat)), h('dt', {}, h('b', {}, 'Tổng')), h('dd', {}, h('b', {}, money(i.total))))),
-    S.me.role === 'owner' && i.status !== 'void' && h('button', { class: 'btn bad', onclick: () => {
+    myRole() === 'owner' && i.status !== 'void' && h('button', { class: 'btn bad', onclick: () => {
       const reason = window.prompt('Lý do hủy hóa đơn?');
       if (reason) api('invoices.void', { id: i.id, reason }).then(() => { toast('Đã hủy hóa đơn'); close(); go('invoices'); }).catch(() => {});
     } }, 'Hủy hóa đơn'));
@@ -516,7 +519,7 @@ function invoiceSheet({ appointment }) {
 
 // ---------- dịch vụ ----------
 async function vServices(el) {
-  const owner = S.me.role === 'owner';
+  const owner = myRole() === 'owner';
   const rows = await api('services.list', { all: owner });
   el.replaceChildren(h('div', { class: 'card' },
     owner && h('button', { class: 'btn', onclick: () => serviceEdit({}) }, '+ Thêm dịch vụ'),
@@ -555,7 +558,7 @@ async function vStaff(el) {
     h('button', { class: 'btn', onclick: () => staffEdit({}) }, '+ Thêm tài khoản'),
     h('p', { class: 'small muted' }, 'Mỗi người một tài khoản riêng. Khách hàng cũng có thể có tài khoản để tự đặt lịch.'),
     h('div', { class: 'list' }, rows.map(u => h('div', { class: 'item', onclick: () => staffEdit(u) },
-      h('div', { class: 'l' }, u.role === 'owner' ? '👑' : u.role === 'customer' ? '⭐' : '👤'), h('div', { class: 't' }, u.display_name || u.username),
+      h('div', { class: 'l' }, RANK[u.role] ? '👑' : u.role === 'customer' ? '⭐' : '👤'), h('div', { class: 't' }, u.display_name || u.username),
       h('div', { class: 'r' }, h('span', { class: 'chip' }, ROLE[u.role] || u.role), u.active ? '' : [h('br'), h('span', { class: 'chip cancelled' }, 'Khóa')],
         u.has_pass === 0 ? [h('br'), h('span', { class: 'chip requested' }, 'Chưa có mật khẩu')] : ''),
       h('div', { class: 's' }, [u.staff_code, u.title, u.username, u.phone].filter(Boolean).join(' · '))))),
@@ -565,7 +568,8 @@ function staffEdit(u) {
   const isNew = !u.id;
   let cust = u.customer_id ? { id: u.customer_id } : null;
   const f = { username: h('input', { value: u.username || '', autocapitalize: 'none' }), display_name: h('input', { value: u.display_name || '' }),
-    role: h('select', {}, Object.entries(ROLE).map(([v, l]) => h('option', { value: v, selected: v === (u.role || 'technician') }, l))),
+    role: h('select', {}, Object.entries(ROLE).filter(([v]) => (RANK[v] || 0) <= (RANK[S.me.role] || 0) || v === u.role)
+      .map(([v, l]) => h('option', { value: v, selected: v === (u.role || 'technician') }, l))),
     phone: h('input', { type: 'tel', value: u.phone || '' }), password: h('input', { type: 'password', autocomplete: 'new-password', placeholder: isNew ? '' : 'Để trống nếu không đổi' }),
     staff_code: h('input', { value: u.staff_code || '', placeholder: 'VD: NB015' }), title: h('input', { value: u.title || '', placeholder: 'Bác sĩ, KTV, Lễ tân…' }),
     active: h('select', {}, h('option', { value: 1, selected: u.active !== 0 }, 'Đang hoạt động'), h('option', { value: 0, selected: u.active === 0 }, 'Khóa tài khoản')) };
@@ -668,7 +672,7 @@ async function vProfile(el) {
 const MOVE = { in: 'Nhập kho', sale: 'Xuất bán', treatment: 'Xuất trị liệu', gift: 'Xuất tặng', internal: 'Xuất nội bộ', adjust: 'Kiểm kê (±)' };
 let stockQ = '';
 async function vStock(el) {
-  const owner = S.me.role === 'owner';
+  const owner = myRole() === 'owner';
   const q = h('input', { type: 'search', placeholder: 'Tìm sản phẩm theo tên hoặc mã…', value: stockQ });
   const box = h('div', { class: 'list' });
   const load = () => api('products.list', { q: stockQ, all: owner }).then(rows => box.replaceChildren(...(rows.length ? rows.map(p => {
@@ -697,7 +701,7 @@ function productSheet(p) {
       p.price != null && h('div', { class: 'stat' }, 'Giá bán', h('b', {}, money(p.price)))),
     h('div', { class: 'row' }, h('div', { class: 'grow' }, field('Loại phiếu', kind)), h('div', { class: 'grow' }, field('Số lượng', qty))),
     field('Ghi chú', note), h('p', { class: 'small muted' }, 'Kiểm kê: nhập số âm hoặc dương để chỉnh lệch tồn.')),
-    [btn, S.me.role === 'owner' && h('button', { class: 'btn ghost', onclick: () => { close(); productEdit(p); } }, 'Sửa sản phẩm')]);
+    [btn, myRole() === 'owner' && h('button', { class: 'btn ghost', onclick: () => { close(); productEdit(p); } }, 'Sửa sản phẩm')]);
 }
 function productEdit(p) {
   const f = { code: h('input', { value: p.code || '' }), name: h('input', { value: p.name || '' }), unit: h('input', { value: p.unit || '', placeholder: 'Ống, Lọ, Miếng…' }),
@@ -871,7 +875,7 @@ async function scanSheet() {
 // Máy quét USB/Bluetooth: "gõ" mã rất nhanh rồi Enter -> nhận ra dù con trỏ đang ở đâu
 let kbBuf = '', kbLast = 0, kbStart = 0;
 document.addEventListener('keydown', e => {
-  if (!S.me || S.me.role === 'customer') return;
+  if (!S.me || myRole() === 'customer') return;
   const now = performance.now();
   if (e.key === 'Enter') {
     const buf = kbBuf; kbBuf = '';
@@ -901,8 +905,8 @@ function quickSearch() {
     api('search.all', { q: v }, true).then(r => {
       const g = [];
       if ((r.customers || []).length) g.push(h('div', { class: 'grp' }, 'Khách hàng'), h('div', { class: 'list' }, r.customers.map(c => item('👤', c.name, [c.phone, c.code].filter(Boolean).join(' · '), () => customerDetail(c.id)))));
-      if ((r.services || []).length) g.push(h('div', { class: 'grp' }, 'Dịch vụ'), h('div', { class: 'list' }, r.services.map(s => item('💆', s.name, `${s.duration_min} phút · ${money(s.price)}`, () => S.me.role === 'owner' ? serviceEdit(s) : toast(`${s.name}: ${money(s.price)}`)))));
-      if ((r.staff || []).length) g.push(h('div', { class: 'grp' }, 'Nhân viên'), h('div', { class: 'list' }, r.staff.map(u => item('👥', u.display_name || u.username, ROLE[u.role], () => S.me.role === 'owner' ? staffEdit(u) : toast(u.display_name)))));
+      if ((r.services || []).length) g.push(h('div', { class: 'grp' }, 'Dịch vụ'), h('div', { class: 'list' }, r.services.map(s => item('💆', s.name, `${s.duration_min} phút · ${money(s.price)}`, () => myRole() === 'owner' ? serviceEdit(s) : toast(`${s.name}: ${money(s.price)}`)))));
+      if ((r.staff || []).length) g.push(h('div', { class: 'grp' }, 'Nhân viên'), h('div', { class: 'list' }, r.staff.map(u => item('👥', u.display_name || u.username, ROLE[u.role], () => myRole() === 'owner' ? staffEdit(u) : toast(u.display_name)))));
       if ((r.invoices || []).length) g.push(h('div', { class: 'grp' }, 'Hóa đơn'), h('div', { class: 'list' }, r.invoices.map(i => item('🧾', `${i.number} · ${money(i.total)}`, `${i.customer_name || 'Khách lẻ'} · ${dmy(i.created_at)}`, () => invoiceDetail(i.id)))));
       box.replaceChildren(...(g.length ? g : [h('div', { class: 'empty' }, 'Không tìm thấy')]));
     }).catch(() => {});
@@ -932,7 +936,7 @@ function diagPanel() {
   return box;
 }
 async function vSystem(el) {
-  const owner = S.me.role === 'owner';
+  const owner = myRole() === 'owner';
   const id = Conn.identity() || {};
   const lanIn = h('input', { placeholder: '192.168.1.125', inputmode: 'decimal' });
   const knownLan = (Conn.diag().lanAddrs || []);
@@ -982,7 +986,7 @@ function changePassword() {
   close = sheet('Đổi mật khẩu', h('div', { style: 'display:grid;gap:10px' }, field('Mật khẩu hiện tại', o), field('Mật khẩu mới', n)), btn);
 }
 function unpair() {
-  if (!window.confirm('Gỡ ghép máy này? Muốn dùng lại phải xin mã ghép máy mới từ chủ spa.')) return;
+  if (!window.confirm('Gỡ ghép máy này? Muốn dùng lại phải xin mã ghép máy mới từ quản trị.')) return;
   Conn.forget(); S.me = null; S.welcome = null; screenPair('Đã gỡ ghép máy.');
 }
 
