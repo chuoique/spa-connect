@@ -535,6 +535,6 @@ return {
   cutP2P() { if (p2pOpen()) failP2P('thử cắt'); },
   killChannel() { if (!active) return; killed = active; killed.client.end(); onDown(killed); },
   reviveChannel() { if (!killed) return; const i = brokers.indexOf(killed); if (i >= 0) brokers[i] = makeChannel(LIST.find(d => d.name === killed.name)); killed = null; changed(); },
-  LAN_HTTP, isPrivate,
+  LAN_HTTP, LAN_HTTPS, isPrivate,
 };
 })();
