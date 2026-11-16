@@ -7,7 +7,7 @@
  */
 (() => {
 'use strict';
-const APP_VERSION = 'Spa 0.17';
+const APP_VERSION = 'Spa 0.18';
 const $ = s => document.querySelector(s);
 
 // ---------- tiện ích giao diện ----------
@@ -593,12 +593,12 @@ async function vStaff(el) {
   const pickTab = t => { S.accTab = t; vStaff(el); };
   el.replaceChildren(h('div', { class: 'card' },
     h('div', { class: 'seg' },
-      h('button', { class: isCust ? '' : 'on', onclick: () => pickTab('staff') }, 'Nhân sự', h('span', { class: 'n' }, rows.filter(u => u.role !== 'customer').length)),
+      h('button', { class: isCust ? '' : 'on', onclick: () => pickTab('staff') }, 'Công ty', h('span', { class: 'n' }, rows.filter(u => u.role !== 'customer').length)),
       h('button', { class: isCust ? 'on' : '', onclick: () => pickTab('customers') }, 'Khách hàng', h('span', { class: 'n' }, rows.filter(u => u.role === 'customer').length)),
       h('button', { class: 'add', onclick: () => staffEdit(isCust ? { role: 'customer' } : {}) }, '+ Thêm tài khoản')),
     h('p', { class: 'small muted' }, isCust ? 'Tài khoản khách hàng: khách tự đặt lịch, xem lịch và điểm của mình trên app.'
       : 'Mỗi người một tài khoản riêng.'),
-    h('div', { class: 'list' }, !shown.length ? h('div', { class: 'empty' }, isCust ? 'Chưa có tài khoản khách hàng' : 'Chưa có tài khoản nhân sự') : shown.map(u => h('div', { class: 'item', onclick: () => staffEdit(u) },
+    h('div', { class: 'list' }, !shown.length ? h('div', { class: 'empty' }, isCust ? 'Chưa có tài khoản khách hàng' : 'Chưa có tài khoản công ty') : shown.map(u => h('div', { class: 'item', onclick: () => staffEdit(u) },
       h('div', { class: 'l' }, RANK[u.role] ? '👑' : u.role === 'customer' ? '⭐' : '👤'), h('div', { class: 't' }, u.display_name || u.username),
       h('div', { class: 'r' }, h('span', { class: 'chip' }, ROLE[u.role] || u.role), u.active ? '' : [h('br'), h('span', { class: 'chip cancelled' }, 'Khóa')],
         u.has_pass === 0 ? [h('br'), h('span', { class: 'chip requested' }, 'Chưa có mật khẩu')] : ''),
