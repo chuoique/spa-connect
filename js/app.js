@@ -7,7 +7,7 @@
  */
 (() => {
 'use strict';
-const APP_VERSION = 'Spa 0.5';
+const APP_VERSION = 'Spa 0.6';
 const $ = s => document.querySelector(s);
 
 // ---------- tiện ích giao diện ----------
@@ -173,7 +173,26 @@ function connBadge() {
     h('span', { class: 'dot ' + (d.path || 'none') }), d.pathName + (d.rtt != null ? ` · ${d.rtt} ms` : ''));
   return b;
 }
+// Mật khẩu tạm / mặc định: bắt đổi trước khi dùng app (máy chủ cũng chặn mọi thao tác khác)
+function screenForceChange() {
+  const o = h('input', { type: 'password', autocomplete: 'current-password' });
+  const n = h('input', { type: 'password', autocomplete: 'new-password' }), n2 = h('input', { type: 'password', autocomplete: 'new-password' });
+  const btn = h('button', { class: 'btn' }, 'Đổi mật khẩu');
+  btn.onclick = () => {
+    if (n.value.length < 6) return toast('Mật khẩu mới cần ít nhất 6 ký tự');
+    if (n.value !== n2.value) return toast('Hai lần nhập mật khẩu mới không khớp');
+    busy(btn, api('auth.change_password', { old: o.value, new: n.value })
+      .then(() => { S.me.must_change = false; toast('Đã đổi mật khẩu'); screenMain(); }).catch(() => {}));
+  };
+  n2.addEventListener('keydown', e => { if (e.key === 'Enter') btn.click(); });
+  $('#app').replaceChildren(h('div', { class: 'wrap center' }, h('div', { class: 'card' },
+    LOGO(), h('h2', {}, `Chào ${S.me.display_name || S.me.username}`),
+    h('p', { class: 'muted small' }, 'Bạn đang dùng mật khẩu tạm. Hãy đặt mật khẩu riêng của mình trước khi dùng app (ít nhất 6 ký tự, không ai khác biết).'),
+    field('Mật khẩu hiện tại (mật khẩu tạm)', o), field('Mật khẩu mới', n), field('Nhập lại mật khẩu mới', n2), btn,
+    h('button', { class: 'btn ghost', onclick: () => api('auth.logout').then(() => { S.me = null; screenLogin(); }).catch(() => {}) }, 'Đăng xuất'))));
+}
 function screenMain() {
+  if (S.me && S.me.must_change) return screenForceChange();
   const tabs = TABS[myRole()] || ['system'];
   if (!tabs.includes(S.tab)) S.tab = tabs[0];
   $('#app').replaceChildren(
