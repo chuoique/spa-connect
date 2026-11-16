@@ -331,8 +331,15 @@ const FLAG = {
           '<path d="M30,0v30M0,15h60" stroke="#fff" stroke-width="10"/><path d="M30,0v30M0,15h60" stroke="#C8102E" stroke-width="6"/></svg>'),
 };
 
+// Nhãn ngắn trùng với TÊN NGƯỜI (Thu, Chi, Nam…): KHÔNG để trong từ điển chung (sẽ dịch nhầm tên nhân viên/khách),
+// chỉ dịch đúng chỗ trong mã qua I18N.label('Thu').
+const LABEL_EN = { 'Thu': 'Money in', 'Chi': 'Money out',   // thu = tiền thu vào, chi = tiền chi ra
+ 'Nam': 'Male', 'In': 'Print', 'MST': 'Tax ID' };
+
 window.I18N = {
   flag: l => FLAG[l],
+  // trả về nút chữ (Node) -> h() không dịch lại lần nữa
+  label: s => document.createTextNode(lang === 'en' && LABEL_EN[s] != null ? LABEL_EN[s] : s),
   get lang() { return lang; },
   set(l) { lang = l === 'en' ? 'en' : 'vi'; try { localStorage.setItem('lang', lang); } catch (e) {} document.documentElement.lang = lang; },
   t(s) {

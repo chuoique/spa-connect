@@ -7,7 +7,7 @@
  */
 (() => {
 'use strict';
-const APP_VERSION = 'Spa 0.24';
+const APP_VERSION = 'Spa 0.25';
 const $ = s => document.querySelector(s);
 
 // ---------- tiện ích giao diện ----------
@@ -463,11 +463,11 @@ function memberCard(c) {
     qrImg(c.code)));
   sheet('Thẻ thành viên', h('div', { style: 'display:grid;gap:12px' }, card,
     h('p', { class: 'small muted' }, 'Bấm In (hoặc Chia sẻ → In trên iPhone). Chọn khổ giấy nhỏ hoặc in trên giấy cứng rồi cắt theo viền.')),
-    h('button', { class: 'btn', onclick: () => window.print() }, 'In'));
+    h('button', { class: 'btn', onclick: () => window.print() }, I18N.label('In')));
 }
 function customerEdit(c) {
   const f = { name: h('input', { value: c.name || '' }), phone: h('input', { type: 'tel', value: c.phone || '' }), email: h('input', { type: 'email', value: c.email || '' }),
-    birthday: h('input', { type: 'date', value: c.birthday || '' }), gender: h('select', {}, ['', 'Nữ', 'Nam', 'Khác'].map(g => h('option', { value: g, selected: g === (c.gender || '') }, g || '—'))),
+    birthday: h('input', { type: 'date', value: c.birthday || '' }), gender: h('select', {}, ['', 'Nữ', 'Nam', 'Khác'].map(g => h('option', { value: g, selected: g === (c.gender || '') }, g === 'Nam' ? I18N.label('Nam') : g || '—'))),
     address: h('input', { value: c.address || '' }), note: h('textarea', { value: c.note || '' }) };
   const btn = h('button', { class: 'btn' }, 'Lưu');
   let close;
@@ -814,8 +814,8 @@ async function vCash(el) {
   const tot = Object.fromEntries((sum.totals || []).map(t => [t.kind, t.amount]));
   el.replaceChildren(h('div', { class: 'card' },
     rangeSel(cashRange, v => { cashRange = v; go('cash'); }),
-    h('div', { class: 'stats' }, h('div', { class: 'stat' }, 'Thu', h('b', { style: 'color:var(--ok)' }, money(tot.in || 0))),
-      h('div', { class: 'stat' }, 'Chi', h('b', { style: 'color:var(--bad)' }, money(tot.out || 0))),
+    h('div', { class: 'stats' }, h('div', { class: 'stat' }, I18N.label('Thu'), h('b', { style: 'color:var(--ok)' }, money(tot.in || 0))),
+      h('div', { class: 'stat' }, I18N.label('Chi'), h('b', { style: 'color:var(--bad)' }, money(tot.out || 0))),
       h('div', { class: 'stat' }, 'Chênh lệch', h('b', {}, money((tot.in || 0) - (tot.out || 0))))),
     h('div', { class: 'row' }, h('button', { class: 'btn', onclick: () => cashEdit({ kind: 'out' }) }, '− Phiếu chi'), h('button', { class: 'btn ghost', onclick: () => cashEdit({ kind: 'in' }) }, '+ Phiếu thu')),
     h('div', { class: 'list' }, rows.length ? rows.map(c => h('div', { class: 'item', onclick: () => cashEdit(c) },
@@ -825,7 +825,7 @@ async function vCash(el) {
 }
 function cashEdit(c) {
   const isNew = !c.id;
-  const f = { kind: h('select', {}, h('option', { value: 'out', selected: c.kind === 'out' }, 'Chi'), h('option', { value: 'in', selected: c.kind === 'in' }, 'Thu')),
+  const f = { kind: h('select', {}, h('option', { value: 'out', selected: c.kind === 'out' }, I18N.label('Chi')), h('option', { value: 'in', selected: c.kind === 'in' }, I18N.label('Thu'))),
     amount: h('input', { type: 'number', min: 0, step: 1000, inputmode: 'numeric', value: c.amount || '' }), content: h('input', { value: c.content || '' }),
     category: h('input', { value: c.category || '', placeholder: 'Điện, nước, vật tư, lương, thắp hương…' }), person: h('input', { value: c.person || '' }),
     fund: h('input', { value: c.fund || 'Quỹ tiền mặt' }), date: h('input', { type: 'date', value: dateVal(c.at || Date.now()) }), note: h('input', { value: c.note || '' }) };
@@ -1104,7 +1104,7 @@ async function vSystem(el) {
             const v = Object.fromEntries(Object.entries(f).map(([k, el]) => [k, el.value.trim()]));
             api('settings.save', v).then(() => { S.biz = { ...S.biz, ...v }; toast('Đã lưu thông tin doanh nghiệp'); }).catch(() => {});
           } }, 'Lưu thông tin doanh nghiệp'))
-        : h('dl', { class: 'kv' }, h('dt', {}, 'Tên'), h('dd', {}, biz.biz_name), h('dt', {}, 'MST'), h('dd', {}, biz.biz_tax),
+        : h('dl', { class: 'kv' }, h('dt', {}, 'Tên'), h('dd', {}, biz.biz_name), h('dt', {}, I18N.label('MST')), h('dd', {}, biz.biz_tax),
           h('dt', {}, 'Địa chỉ'), h('dd', {}, biz.biz_addr), h('dt', {}, 'Điện thoại'), h('dd', {}, biz.biz_phone))));
   }
   if (owner) {
