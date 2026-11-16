@@ -1,13 +1,15 @@
 // Service worker: giữ bản sao trang + thư viện trong máy.
 // Mở app luôn dùng ngay bản trong máy (nhanh, chạy được cả khi mất Internet / GitHub sập),
 // đồng thời tải bản mới ở nền cho lần mở sau.
-const CACHE = 'spa-v5';
+const CACHE = 'spa-v6';
 const FILES = [
   './',
   './index.html',
   './manifest.webmanifest',
   './icon-192.png',
   './apple-touch-icon.png',
+  './js/conn.js',
+  './js/app.js',
   './lib/mqtt.min.js',
   './lib/forge.min.js',
   './lib/nostr.bundle.js',

@@ -3,855 +3,116 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Kết nối spa</title>
+<title>Spa</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Spa">
 <meta name="theme-color" content="#0f766e">
 <style>
 :root{
-  --bg:#eef1f4; --card:#ffffff; --fg:#161b22; --muted:#5b6573; --line:#d5dbe3;
-  --accent:#1d4ed8; --accent-fg:#ffffff; --ok:#15803d; --warn:#b45309; --bad:#b91c1c; --sel:#eef4ff;
-  --lan:#0f766e; --p2p:#15803d; --mqtt:#b45309;
+  --bg:#f3f5f4; --card:#ffffff; --fg:#17201e; --muted:#5f6b68; --line:#dde3e1; --soft:#eef3f2;
+  --brand:#0f766e; --brand-fg:#ffffff; --brand-soft:#e3f2ef;
+  --ok:#15803d; --warn:#b45309; --bad:#b91c1c; --info:#1d4ed8;
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
   --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --r:12px;
 }
 @media (prefers-color-scheme:dark){:root{
-  --bg:#0e1116; --card:#171b22; --fg:#e6e9ee; --muted:#98a2b0; --line:#2a313b;
-  --accent:#7aa2ff; --accent-fg:#0b1530; --ok:#4ade80; --warn:#fbbf24; --bad:#f87171; --sel:#1a2333;
-  --lan:#2dd4bf; --p2p:#4ade80; --mqtt:#fbbf24; color-scheme:dark}}
+  --bg:#0f1514; --card:#18211f; --fg:#e4ecea; --muted:#97a6a2; --line:#2a3633; --soft:#1f2a28;
+  --brand:#2dd4bf; --brand-fg:#06201d; --brand-soft:#123430;
+  --ok:#4ade80; --warn:#fbbf24; --bad:#f87171; --info:#7aa2ff; color-scheme:dark}}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 var(--sans);
-  padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 32px max(16px,env(safe-area-inset-left))}
-main{max-width:560px;margin:0 auto;display:grid;gap:14px}
-h1{font-size:21px;margin:4px 0 0;text-wrap:balance}
-h2{font-size:15px;margin:0}
-.sub{color:var(--muted);margin:0;font-size:14px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;display:grid;gap:12px;min-width:0}
-label{font-size:13px;color:var(--muted);letter-spacing:.02em}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-input{font:600 20px var(--mono);letter-spacing:.12em;text-transform:uppercase;padding:10px 12px;border-radius:8px;
-  border:1px solid var(--line);background:var(--bg);color:var(--fg);flex:1 1 160px;min-width:0}
-input.msg,input.addr{font:15px var(--sans);letter-spacing:0;text-transform:none}
-input.addr{font-family:var(--mono)}
-button{font:600 15px var(--sans);padding:10px 16px;border-radius:8px;border:0;background:var(--accent);color:var(--accent-fg);cursor:pointer}
-button:disabled{opacity:.45;cursor:default}
-button.ghost{background:transparent;color:var(--accent);border:1px solid var(--line)}
-button.small{font-size:13px;padding:6px 10px}
-.status{margin:0;font-size:14px;font-weight:600;color:var(--muted)}
-.status.ok{color:var(--ok)} .status.bad{color:var(--warn)}
-.now{display:grid;grid-template-columns:1fr auto;align-items:end;gap:4px 12px;border-left:5px solid var(--line);padding:4px 0 4px 12px}
-.now.lan{border-color:var(--lan)} .now.p2p{border-color:var(--p2p)} .now.mqtt{border-color:var(--mqtt)}
-.now .path{font:700 19px var(--sans)}
-.now .rtt{font:700 28px var(--mono);font-variant-numeric:tabular-nums;grid-row:span 2;text-align:right}
-.now .detail{font:12px var(--mono);color:var(--muted);word-break:break-all}
-.hint{margin:0;font-size:13px;color:var(--muted)} .hint a{color:var(--accent);font-family:var(--mono);word-break:break-all}
-.links{list-style:none;margin:0;padding:0;display:grid;gap:6px}
-.links li{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;align-items:center;
-  border:1px solid var(--line);border-radius:8px;padding:8px 10px}
-.links li.active{border-color:var(--ok);background:var(--sel)}
-.links li.sep{border:0;padding:4px 2px 0;font-size:12px;color:var(--muted);letter-spacing:.05em;display:block}
-.dot{width:10px;height:10px;border-radius:50%;background:var(--line);grid-row:span 2}
-.dot.up{background:var(--warn)} .dot.ok{background:var(--ok)} .dot.down{background:var(--bad)}
-.lname{font-weight:600}
-.lname small{font-weight:700;color:var(--ok);letter-spacing:.06em;margin-left:6px;font-size:11px}
-.lstate{font-size:13px;color:var(--muted);grid-column:2;word-break:break-all}
-.lrtt{font:600 15px var(--mono);font-variant-numeric:tabular-nums;grid-row:span 2;text-align:right}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 var(--sans);-webkit-text-size-adjust:100%}
+body{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+button,input,select,textarea{font:inherit;color:inherit}
+h1{font-size:20px;margin:0}
+h2{font-size:17px;margin:0}
+h3{font-size:15px;margin:0}
+p{margin:0}
+.wrap{max-width:720px;margin:0 auto;padding:12px max(14px,env(safe-area-inset-right)) 16px max(14px,env(safe-area-inset-left));display:grid;gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:10px;min-width:0}
+.muted{color:var(--muted)} .small{font-size:13px} .mono{font-family:var(--mono)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row.between{justify-content:space-between}
+.grow{flex:1 1 auto;min-width:0}
+label.f{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+input,select,textarea{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;background:var(--bg);min-width:0}
+textarea{min-height:70px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--brand);outline-offset:0;border-color:transparent}
+.btn{border:0;border-radius:9px;padding:10px 14px;background:var(--brand);color:var(--brand-fg);font-weight:600;cursor:pointer;white-space:nowrap}
+.btn.ghost{background:transparent;color:var(--brand);border:1px solid var(--line)}
+.btn.bad{background:transparent;color:var(--bad);border:1px solid var(--line)}
+.btn.small{padding:6px 10px;font-size:13px}
+.btn:disabled{opacity:.45}
+.big{font-size:22px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-family:var(--mono)}
+/* đầu trang */
+header.top{position:sticky;top:0;z-index:20;background:var(--card);border-bottom:1px solid var(--line);
+  padding:calc(8px + env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) 8px max(14px,env(safe-area-inset-left))}
+header.top .in{max-width:720px;margin:0 auto;display:flex;align-items:center;gap:10px}
+.spa{font-weight:700}
+.who{font-size:12px;color:var(--muted)}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:4px 9px;border-radius:99px;background:var(--soft);cursor:pointer;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.dot.lan{background:var(--ok)} .dot.p2p{background:var(--info)} .dot.channel{background:var(--warn)} .dot.none{background:var(--bad)}
+/* thanh chọn dưới */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--card);border-top:1px solid var(--line);
+  padding:4px max(6px,env(safe-area-inset-right)) calc(4px + env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-left));
+  display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs button{flex:1 0 auto;min-width:64px;border:0;background:none;padding:8px 6px;border-radius:9px;font-size:12px;color:var(--muted);display:grid;gap:2px;justify-items:center;cursor:pointer}
+nav.tabs button .ic{font-size:18px;line-height:1}
+nav.tabs button.on{color:var(--brand);background:var(--brand-soft);font-weight:600}
+/* danh sách */
+.list{display:grid;gap:0;margin:0 -14px}
+.item{display:grid;grid-template-columns:auto 1fr auto;gap:2px 12px;align-items:center;padding:10px 14px;border-top:1px solid var(--line);cursor:pointer}
+.item:first-child{border-top:0}
+.item:active{background:var(--soft)}
+.item .t{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .s{font-size:13px;color:var(--muted);grid-column:2;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .r{grid-row:span 2;text-align:right;font-size:13px}
+.item .l{grid-row:span 2;font:600 14px var(--mono);color:var(--brand);min-width:44px}
+.chip{display:inline-block;font-size:12px;padding:2px 8px;border-radius:99px;background:var(--soft);color:var(--muted);white-space:nowrap}
+.chip.requested{background:#fef3c7;color:#92400e} .chip.booked{background:var(--brand-soft);color:var(--brand)}
+.chip.arrived,.chip.in_service{background:#dbeafe;color:#1e40af} .chip.done{background:#dcfce7;color:#166534}
+.chip.cancelled,.chip.no_show,.chip.void{background:#fee2e2;color:#991b1b}
+@media (prefers-color-scheme:dark){.chip.requested{background:#3b2a06;color:#fbbf24}.chip.arrived,.chip.in_service{background:#172554;color:#93c5fd}.chip.done{background:#052e16;color:#86efac}.chip.cancelled,.chip.no_show,.chip.void{background:#3b0d0d;color:#fca5a5}}
+.empty{padding:18px 4px;text-align:center;color:var(--muted)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.stat{background:var(--soft);border-radius:10px;padding:10px}
+.stat b{display:block;font-size:20px;font-variant-numeric:tabular-nums}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14px}
-.kv dt{color:var(--muted)} .kv dd{margin:0;font-family:var(--mono);font-size:13px;word-break:break-all}
-pre{margin:0;font:12px/1.45 var(--mono);white-space:pre-wrap;word-break:break-all;max-height:300px;overflow:auto;color:var(--muted)}
-.chat{display:grid;gap:4px;font-size:14px}
-details summary{cursor:pointer;font-weight:600}
-ol.steps{margin:0;padding-left:20px;font-size:14px;display:grid;gap:4px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;word-break:break-word}
+/* bảng tạm (sheet) */
+.scrim{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--card);width:100%;max-width:640px;max-height:92vh;overflow:auto;border-radius:16px 16px 0 0;
+  padding:14px max(16px,env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));display:grid;gap:12px}
+@media (min-width:700px){.scrim{align-items:center}.sheet{border-radius:16px}}
+.sheet .bar{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.x{border:0;background:var(--soft);border-radius:99px;width:32px;height:32px;cursor:pointer;font-size:16px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom));z-index:60;
+  background:var(--fg);color:var(--bg);padding:10px 14px;border-radius:10px;font-size:14px;max-width:90vw;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+.toast.bad{background:var(--bad);color:#fff}
+.banner{background:#fef3c7;color:#92400e;border-radius:10px;padding:8px 12px;font-size:13px}
+@media (prefers-color-scheme:dark){.banner{background:#3b2a06;color:#fbbf24}}
+pre.log{margin:0;font:11px/1.4 var(--mono);white-space:pre-wrap;word-break:break-all;max-height:260px;overflow:auto;color:var(--muted)}
+.center{min-height:70vh;display:grid;place-items:center}
+.center .card{width:100%;max-width:420px}
+.pick{display:grid;gap:4px;max-height:220px;overflow:auto}
+.pick button{text-align:left;border:1px solid var(--line);background:var(--bg);border-radius:9px;padding:8px 10px;cursor:pointer}
+.lines{display:grid;gap:8px}
+.line{display:grid;grid-template-columns:1fr 64px 110px auto;gap:6px;align-items:center}
+@media (max-width:480px){.line{grid-template-columns:1fr 54px 92px auto}}
+.total{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
-<main>
-  <div>
-    <h1>Kết nối tới máy chủ spa</h1>
-    <p class="sub">Ưu tiên mạng nội bộ của spa; không có thì đi qua Internet (P2P, MQTT, ntfy). Đường nào hỏng tự chuyển. <span id="ver"></span></p>
-  </div>
-
-  <section class="card">
-    <label for="code">Mã ghép đôi (hiện trên PC)</label>
-    <div class="row">
-      <input id="code" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX" maxlength="9">
-      <button id="go">Kết nối</button>
-      <button id="stop" class="ghost" disabled>Ngắt</button>
-    </div>
-    <p class="status" id="status">Chưa kết nối</p>
-    <div class="now" id="now">
-      <span class="path" id="nowPath">–</span>
-      <span class="rtt" id="nowRtt">–</span>
-      <span class="detail" id="nowDetail">Đường đang dùng</span>
-    </div>
-  </section>
-
-  <section class="card">
-    <ul class="links" id="links"></ul>
-    <div class="row">
-      <button id="cutLan" class="ghost small" disabled>Thử cắt nội bộ</button>
-      <button id="cutP2P" class="ghost small" disabled>Thử cắt P2P</button>
-      <button id="kill" class="ghost small" disabled>Thử làm hỏng kênh đang dùng</button>
-      <button id="revive" class="ghost small" disabled>Bật lại kênh</button>
-    </div>
-    <dl class="kv">
-      <dt>Thông với PC sau</dt><dd id="tFirst">–</dd>
-      <dt>P2P mở sau</dt><dd id="tP2P">–</dd>
-      <dt>Số thứ tự</dt><dd id="num">–</dd>
-      <dt>Số lần đổi đường</dt><dd id="switches">0</dd>
-    </dl>
-  </section>
-
-  <section class="card">
-    <div class="row">
-      <input class="msg" id="msg" placeholder="Gửi tin nhắn tới PC" autocomplete="off">
-      <button id="send" class="ghost" disabled>Gửi</button>
-    </div>
-    <div class="chat" id="chat"></div>
-  </section>
-
-  <section class="card">
-    <details id="lanBox">
-      <summary>Mạng nội bộ của spa</summary>
-      <div style="display:grid;gap:10px;margin-top:10px">
-        <p class="hint" id="lanKnown">Chưa biết địa chỉ máy chủ nội bộ. Kết nối qua Internet một lần là app tự nhớ, hoặc nhập tay bên dưới.</p>
-        <div class="row">
-          <input class="addr" id="lanAddr" placeholder="192.168.1.125" inputmode="decimal" autocomplete="off">
-          <button id="lanAdd" class="ghost small">Thêm</button>
-          <button id="lanScan" class="ghost small">Tìm ngay</button>
-        </div>
-        <p class="hint">Lần đầu dùng mạng nội bộ, mỗi máy cần cài <b>chứng chỉ của spa</b> một lần:</p>
-        <ol class="steps">
-          <li>Ở spa (cùng Wi-Fi với PC), mở bằng Safari: <span id="caLink">http://IP-PC:8080/ca.crt</span></li>
-          <li>Cài đặt → Đã tải về hồ sơ → Cài đặt.</li>
-          <li>Cài đặt → Cài đặt chung → Giới thiệu → Cài đặt tin cậy chứng nhận → bật “Spa - chung chi goc…”.</li>
-        </ol>
-        <p class="hint">Chứng chỉ này chỉ có hiệu lực với địa chỉ nội bộ (192.168.x.x, 10.x.x.x…), không ảnh hưởng trang web nào khác.</p>
-      </div>
-    </details>
-  </section>
-
-  <section class="card">
-    <label>Nhật ký kỹ thuật</label>
-    <pre id="log"></pre>
-  </section>
-</main>
-
-<!-- Thư viện chép sẵn trong kho: không phụ thuộc CDN. forge chỉ cần khi trang chạy qua http. -->
+<div id="app"></div>
 <script src="lib/forge.min.js"></script>
 <script src="lib/mqtt.min.js"></script>
 <script src="lib/nostr.bundle.js"></script>
-<script>
-(() => {
-const V4ONLY = /[?&#]v4\b/.test(location.search + location.hash);
-const VERSION = 'h8' + (location.protocol === 'http:' ? ' http' : '') + (V4ONLY ? ' (P2P CHỈ IPv4)' : '') + (location.search ? ' ' + location.search : '');
-const SALT = 'spa-p2p-v1', ITERS = 100000;
-const ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }];
-const NTFY = 'https://ntfy.sh/';
-// Kênh báo tin - phải khớp g_br[] trong hybrid_server.c
-const ALL_CHANNELS = [
-  { name: 'emqx',      url: 'wss://broker.emqx.io:8084/mqtt' },
-  { name: 'hivemq',    url: 'wss://broker.hivemq.com:8884/mqtt' },
-  { name: 'mosquitto', url: 'wss://test.mosquitto.org:8081/mqtt' },
-  { name: 'eclipse',   url: 'wss://mqtt.eclipseprojects.io:443/mqtt' },
-  { name: 'nostr.mom', nostr: 'wss://nostr.mom' },
-  { name: 'nos.lol',   nostr: 'wss://nos.lol' },
-  { name: 'primal',    nostr: 'wss://relay.primal.net' },
-  { name: 'ntfy',      ntfy: true },
-];
-const NOSTR_KIND = 25051;      // loại "tạm thời": relay chuyển tiếp nhưng không lưu lại
-// Thử: ?kenh=ntfy hoặc ?kenh=emqx,ntfy -> chỉ dùng các kênh đó; ?noibo=0 -> bỏ qua mạng nội bộ
-const ONLY = (new URLSearchParams(location.search).get('kenh') || '').split(',').filter(Boolean);
-const NO_LAN = new URLSearchParams(location.search).get('noibo') === '0';
-const LIST = ONLY.length ? ALL_CHANNELS.filter(c => ONLY.includes(c.name)) : ALL_CHANNELS;
-const LAN_HTTP = 8080, LAN_HTTPS = 8443;
-const LAN_WAIT = 1500;         // chờ nội bộ tối đa 1,5 s rồi mới đi Internet
-const DEAD_MS = 7000;          // một đường im lặng lâu hơn -> coi như hỏng
-const PROBE_MS = 10000;        // kênh dự phòng: thăm dò mỗi 10 giây
-const NTFY_PROBE_MS = 300000;  // ntfy giới hạn số tin -> dự phòng thì 5 phút mới chào 1 lần
-const NTFY_PING_MS = 20000, NTFY_DEAD_MS = 50000;
-const P2P_TIMEOUT = 20000;
-const $ = id => document.getElementById(id);
-const enc = new TextEncoder(), dec = new TextDecoder();
-const SUBTLE = !!(window.crypto && crypto.subtle);
-const DEV = 'd' + Math.random().toString(36).slice(2, 10);
-const isPrivate = h => /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|127\.)/.test(h) || h === 'localhost';
-const PAGE_ON_PC = isPrivate(location.hostname);           // trang do chính PC phục vụ
-const HTTP_PAGE = location.protocol === 'http:';           // http -> chỉ nối được ws:// về chính máy đã phục vụ trang
-
-let key, base, hex, brokers = [], active = null, seq = 0, sent = {}, seen = new Set(), seenQ = [];
-let tStart = 0, switches = 0, tick = null, running = false, killed = null, lastPath = null, statsSent = false, firstDone = false;
-let internetStarted = false, internetTimer = null;
-const p2p = { pc: null, dc: null, state: 'off', sid: '', lastPong: 0, lastPing: 0, rtts: [], retryAt: 0, delay: 5000,
-              timer: null, pair: '', note: 'chưa thử', tries: 0 };
-const lan = { ws: null, host: '', up: false, welcomed: false, rtts: [], lastPong: 0, lastPing: 0, helloAt: 0,
-              state: 'chưa tìm', probing: false, scanning: false, lastProbe: 0, lastScan: 0, timer: null, cut: false };
-
-$('ver').textContent = `Phiên bản ${VERSION} · mã hóa ${SUBTLE ? 'WebCrypto' : 'forge'}`;
-
-function log(s) {
-  const t = new Date().toTimeString().slice(0, 8);
-  const lines = ($('log').textContent + `[${t}] ${s}\n`).split('\n');
-  $('log').textContent = lines.slice(-250).join('\n');
-  $('log').scrollTop = $('log').scrollHeight;
-}
-function status(s, cls = '') { $('status').textContent = s; $('status').className = 'status ' + cls; }
-function chat(s) { const d = document.createElement('div'); d.textContent = s; $('chat').prepend(d); }
-const median = a => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y); return s[s.length >> 1]; };
-const since = () => Math.round(performance.now() - tStart) + ' ms';
-const store = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
-                set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
-
-// Chế độ thử: bỏ mọi địa chỉ IPv6, .local và dải Tailscale -> P2P chỉ còn IPv4 công khai
-function onlyV4(sdp) {
-  if (!V4ONLY) return sdp;
-  return sdp.split(/\r?\n/).filter(l => {
-    if (!l.startsWith('a=candidate:')) return true;
-    const addr = l.split(' ')[4] || '';
-    const m = addr.match(/^100\.(\d+)\./);
-    if (m && +m[1] >= 64 && +m[1] <= 127) return false;
-    return !addr.includes(':') && !addr.endsWith('.local');
-  }).join('\r\n');
-}
-
-// ---------- mã hóa (giống hybrid_server.c) ----------
-const u8ToBin = u8 => { let s = ''; for (const b of u8) s += String.fromCharCode(b); return s; };
-let derivedFor = null;
-async function derive(code) {
-  const norm = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
-  if (derivedFor === norm && key) return;
-  if (!SUBTLE) {
-    if (!window.forge) throw new Error('Chưa tải được thư viện mã hóa (forge).');
-    const c = store.get('spa-kc', null);   // forge trên iPhone mất ~11 giây -> tính một lần rồi nhớ
-    if (c && c.n === norm) { key = forge.util.hexToBytes(c.k); base = c.b; }
-    else {
-      key = forge.pkcs5.pbkdf2(norm, SALT, ITERS, 32, forge.md.sha256.create());
-      base = 'spa/' + forge.md.sha256.create().update('spa-p2p-topic:' + norm, 'utf8').digest().toHex().slice(0, 20);
-      store.set('spa-kc', { n: norm, k: forge.util.bytesToHex(key), b: base });
-    }
-  } else {
-    const b = await crypto.subtle.importKey('raw', enc.encode(norm), 'PBKDF2', false, ['deriveKey']);
-    key = await crypto.subtle.deriveKey({ name: 'PBKDF2', salt: enc.encode(SALT), iterations: ITERS, hash: 'SHA-256' },
-      b, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
-    const h = new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode('spa-p2p-topic:' + norm)));
-    base = 'spa/' + [...h.slice(0, 10)].map(x => x.toString(16).padStart(2, '0')).join('');
-  }
-  hex = base.slice(4);
-  derivedFor = norm;
-}
-async function seal(obj) {
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const txt = JSON.stringify(obj);
-  if (!SUBTLE) {
-    const c = forge.cipher.createCipher('AES-GCM', key);
-    c.start({ iv: u8ToBin(iv) });
-    c.update(forge.util.createBuffer(forge.util.encodeUtf8(txt)));
-    c.finish();
-    return btoa(u8ToBin(iv) + c.output.getBytes() + c.mode.tag.getBytes());
-  }
-  const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(txt)));
-  const out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12);
-  return btoa(u8ToBin(out));
-}
-async function open(s) {
-  try {
-    const raw = atob(s);
-    if (!SUBTLE) {
-      const d = forge.cipher.createDecipher('AES-GCM', key);
-      d.start({ iv: raw.slice(0, 12), tag: forge.util.createBuffer(raw.slice(-16)) });
-      d.update(forge.util.createBuffer(raw.slice(12, -16)));
-      if (!d.finish()) return null;
-      return JSON.parse(forge.util.decodeUtf8(d.output.getBytes()));
-    }
-    const u = Uint8Array.from(raw, c => c.charCodeAt(0));
-    const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: u.slice(0, 12) }, key, u.slice(12));
-    return JSON.parse(dec.decode(pt));
-  } catch { return null; }
-}
-
-// ---------- gửi ----------
-const lanOk = () => lan.up && lan.welcomed && lan.ws && lan.ws.readyState === 1;
-const p2pOpen = () => p2p.state === 'open' && p2p.dc && p2p.dc.readyState === 'open';
-async function sendLAN(obj) {
-  if (!lan.ws || lan.ws.readyState !== 1) return false;
-  obj.dev = DEV; obj.t = Date.now();
-  lan.ws.send(await seal(obj));          // trong mạng nội bộ vẫn mã hóa bằng mã ghép đôi
-  return true;
-}
-function sendP2P(obj) {
-  if (!p2pOpen()) return false;
-  obj.dev = DEV; obj.t = Date.now();
-  try { p2p.dc.send(JSON.stringify(obj)); return true; } catch { return false; }
-}
-async function sendVia(b, obj, qos = 1) {
-  if (!b || !b.client || !b.up) return false;
-  obj.dev = DEV; obj.t = Date.now();
-  b.client.publish(base + '/dev', await seal(obj), { qos });
-  return true;
-}
-// Gửi bằng đường tốt nhất: nội bộ > P2P > kênh báo tin
-async function send(obj) { return (lanOk() && await sendLAN(obj)) || sendP2P(obj) || sendVia(active, obj); }
-
-// ---------- mạng nội bộ ----------
-function lanAddrs() {
-  if (NO_LAN) return [];
-  if (HTTP_PAGE) return [location.hostname];       // trang http chỉ nối được về chính máy đã phục vụ nó
-  const list = store.get('spa-lan', []).map(a => String(a).replace(/:\d+$/, ''));
-  for (const a of store.get('spa-lan-manual', [])) if (!list.includes(a)) list.unshift(a);
-  if (PAGE_ON_PC && !list.includes(location.hostname)) list.unshift(location.hostname);
-  return list.filter(isPrivate);
-}
-const lanUrl = ip => HTTP_PAGE ? `ws://${location.host}/ws` : `wss://${ip}:${LAN_HTTPS}/ws`;
-
-// Mở thử 1 WebSocket; trả về ws nếu mở được trong thời hạn
-function tryWS(url, ms) {
-  return new Promise(res => {
-    let done = false;
-    let ws;
-    try { ws = new WebSocket(url); } catch { return res(null); }
-    const fin = v => { if (done) return; done = true; clearTimeout(t); if (!v) { try { ws.close(); } catch {} } res(v); };
-    const t = setTimeout(() => fin(null), ms);
-    ws.onopen = () => fin(ws);
-    ws.onerror = () => fin(null);
-    ws.onclose = () => fin(null);
-  });
-}
-
-function adoptLAN(ws, host) {
-  if (lanOk() || lan.cut) { try { ws.close(); } catch {} return; }
-  if (lan.ws && lan.ws !== ws) { try { lan.ws.close(); } catch {} }
-  lan.ws = ws; lan.host = host; lan.up = true; lan.welcomed = false;
-  lan.state = `đã nối ${host}, chờ PC chào`;
-  ws.onmessage = async e => { const m = await open(e.data); if (m) onMsg(m, 'lan'); else log(`Nội bộ ${host}: tin không giải mã được (không phải máy chủ của mình?)`); };
-  ws.onclose = () => {
-    if (lan.ws !== ws) return;
-    if (lan.welcomed) { log(`Nội bộ: mất kết nối ${host}`); chat('⇄ Mất mạng nội bộ'); }
-    lan.ws = null; lan.up = false; lan.welcomed = false; lan.state = 'mất kết nối, đang tìm lại…';
-    lan.lastProbe = 0;                 // tìm lại ngay ở vòng sau
-    ensureInternet('mất mạng nội bộ');
-    render();
-  };
-  lan.helloAt = performance.now();
-  sendLAN({ type: 'hello' });
-  // không chào lại trong 3 s -> không phải máy chủ của mình (sai mã ghép đôi?)
-  setTimeout(() => { if (lan.ws === ws && !lan.welcomed) { log(`Nội bộ ${host}: không có lời chào, bỏ`); try { ws.close(); } catch {} } }, 3000);
-  render();
-}
-
-// Thử nhanh các địa chỉ đã biết, song song
-async function probeKnown() {
-  if (lan.probing || lanOk() || lan.cut) return false;
-  const addrs = lanAddrs();
-  if (!addrs.length) return false;
-  lan.probing = true; lan.lastProbe = performance.now();
-  if (!lan.up) lan.state = `đang thử ${addrs.join(', ')}…`;
-  render();
-  const found = await new Promise(res => {
-    let left = addrs.length, won = false;
-    for (const ip of addrs) tryWS(lanUrl(ip), 2500).then(ws => {
-      if (ws && !won) { won = true; res({ ws, ip }); }
-      else if (ws) ws.close();
-      if (--left === 0 && !won) res(null);
-    });
-  });
-  lan.probing = false;
-  if (found) { log(`Nội bộ: tìm thấy máy chủ ở ${found.ip}`); adoptLAN(found.ws, found.ip); return true; }
-  if (!lan.up) lan.state = HTTP_PAGE ? 'PC không trả lời' : 'không thấy (chưa ở spa, hoặc chưa cài chứng chỉ)';
-  render();
-  return false;
-}
-
-// Quét cả dải 192.168.x.1-254 (dải của địa chỉ đã biết + dải phổ biến) để tìm máy chủ khi PC đổi IP
-async function scanSubnets() {
-  if (HTTP_PAGE || NO_LAN || lan.scanning || lanOk() || lan.cut) return;
-  const known = lanAddrs();
-  const nets = [...new Set([...known.map(a => a.split('.').slice(0, 3).join('.')), '192.168.1', '192.168.0'])];
-  lan.scanning = true; lan.lastScan = performance.now();
-  log(`Nội bộ: quét ngầm ${nets.map(n => n + '.x').join(', ')}`);
-  for (const net of nets) {
-    for (let i = 1; i <= 254 && running && !lanOk() && !lan.cut; i += 32) {
-      const batch = [];
-      for (let k = i; k < i + 32 && k <= 254; k++) { const ip = `${net}.${k}`; if (!known.includes(ip)) batch.push(ip); }
-      lan.state = `đang quét ${net}.${i}–${Math.min(i + 31, 254)}…`; render();
-      const hits = await Promise.all(batch.map(ip => tryWS(lanUrl(ip), 2000).then(ws => ws && { ws, ip })));
-      const ok = hits.filter(Boolean);
-      if (ok.length) {
-        ok.slice(1).forEach(h => h.ws.close());
-        log(`Nội bộ: quét thấy máy chủ ở ${ok[0].ip}`);
-        adoptLAN(ok[0].ws, ok[0].ip);
-        lan.scanning = false;
-        return;
-      }
-    }
-  }
-  lan.scanning = false;
-  if (!lan.up) lan.state = 'không thấy máy chủ nội bộ';
-  render();
-}
-
-function showLanInfo() {
-  const list = lanAddrs();
-  $('lanKnown').textContent = list.length ? `Địa chỉ đã biết: ${list.join(', ')}` : 'Chưa biết địa chỉ máy chủ nội bộ. Kết nối qua Internet một lần là app tự nhớ, hoặc nhập tay bên dưới.';
-  // mỗi địa chỉ một liên kết (PC có thể có nhiều card mạng; dùng cái cùng mạng Wi-Fi với điện thoại)
-  $('caLink').textContent = list.length ? '' : `http://IP-PC:${LAN_HTTP}/ca.crt`;
-  list.forEach((ip, i) => {
-    if (i) $('caLink').append(' hoặc ');
-    const a = document.createElement('a');
-    a.href = a.textContent = `http://${ip}:${LAN_HTTP}/ca.crt`;
-    $('caLink').append(a);
-  });
-}
-
-// ---------- hiển thị ----------
-function currentPath() { return lanOk() ? 'lan' : p2pOpen() ? 'p2p' : active ? 'mqtt' : null; }
-function render() {
-  const path = currentPath();
-  if (path !== lastPath) {
-    if (lastPath && path) {
-      switches++; $('switches').textContent = switches;
-      chat(path === 'lan' ? `⇄ Dùng mạng nội bộ (${lan.host})` : path === 'p2p' ? '⇄ Dùng P2P trực tiếp' : `⇄ Dùng kênh ${active.name}`);
-    }
-    lastPath = path;
-  }
-  $('now').className = 'now ' + (path || '');
-  $('nowPath').textContent = path === 'lan' ? 'Mạng nội bộ' : path === 'p2p' ? 'P2P trực tiếp' : path === 'mqtt' ? `Qua kênh ${active.name}` : '–';
-  const r = path === 'lan' ? median(lan.rtts) : path === 'p2p' ? median(p2p.rtts) : path === 'mqtt' ? median(active.rtts) : null;
-  $('nowRtt').textContent = r != null ? r + ' ms' : '–';
-  $('nowDetail').textContent = path === 'lan' ? `thẳng tới PC ${lan.host}, không qua Internet` : path === 'p2p' ? p2p.pair
-    : path === 'mqtt' ? 'qua máy chuyển tiếp công cộng, đã mã hóa' : 'Đường đang dùng';
-  $('send').disabled = !path;
-
-  const ul = $('links'); ul.innerHTML = '';
-  const row = (name, on, dotCls, state, rtt) => {
-    const li = document.createElement('li'); if (on) li.className = 'active';
-    const dot = document.createElement('span'); dot.className = 'dot ' + dotCls;
-    const nm = document.createElement('span'); nm.className = 'lname'; nm.textContent = name;
-    if (on) { const s = document.createElement('small'); s.textContent = 'ĐANG DÙNG'; nm.append(s); }
-    const rt = document.createElement('span'); rt.className = 'lrtt'; rt.textContent = rtt != null ? rtt + ' ms' : '–';
-    const st = document.createElement('span'); st.className = 'lstate'; st.textContent = state;
-    li.append(dot, nm, rt, st); ul.append(li);
-  };
-  const sep = t => { const li = document.createElement('li'); li.className = 'sep'; li.textContent = t; ul.append(li); };
-  sep('MẠNG NỘI BỘ');
-  row('Nội bộ', path === 'lan', lanOk() ? 'ok' : lan.up || lan.probing || lan.scanning ? 'up' : running ? 'down' : '',
-      lan.cut ? 'đã cắt thử' : lan.state, median(lan.rtts));
-  sep('INTERNET TRỰC TIẾP');
-  row('P2P', path === 'p2p', p2p.state === 'open' ? 'ok' : p2p.state === 'trying' ? 'up' : p2p.state === 'failed' ? 'down' : '',
-      p2p.note, median(p2p.rtts));
-  sep('KÊNH BÁO TIN');
-  for (const b of brokers)
-    row(b.name, path === 'mqtt' && b === active, b.welcomed && b.up ? 'ok' : b.up ? 'up' : b.failed ? 'down' : '', b.state, median(b.rtts));
-  if (!brokers.length) { const li = document.createElement('li'); li.className = 'sep'; li.textContent = internetStarted ? '' : '(chưa dùng: đang ưu tiên nội bộ)'; ul.append(li); }
-  $('cutLan').disabled = !lanOk() && !lan.cut;
-  $('cutLan').textContent = lan.cut ? 'Bật lại nội bộ' : 'Thử cắt nội bộ';
-  $('cutP2P').disabled = !p2pOpen();
-  $('kill').disabled = !active || !!killed;
-  $('revive').disabled = !killed;
-}
-
-// ---------- kênh báo tin: MQTT ----------
-function setActive(b, why) {
-  if (b === active) return;
-  const old = active; active = b;
-  log(old ? `Kênh báo tin: ${old.name} → ${b.name} (${why})` : `Kênh báo tin dùng ${b.name} (${why})`);
-  render();
-}
-// Thứ tự ưu tiên: MQTT (nhanh) > Nostr > ntfy (chậm, giới hạn số tin)
-const score = b => (median(b.rtts) ?? 5000) + (b.ntfy ? 100000 : b.nostr ? 50000 : 0);
-// Nhịp thăm dò / ping / coi là hỏng cho từng loại kênh (khi là đường chính và khi chỉ dự phòng)
-function cfg(b) {
-  if (b.ntfy) return { probe: NTFY_PROBE_MS, mainPing: NTFY_PING_MS, mainDead: NTFY_DEAD_MS, bakPing: NTFY_PING_MS, bakDead: NTFY_DEAD_MS };
-  if (b.nostr) return { probe: 30000, mainPing: 3000, mainDead: 10000, bakPing: 30000, bakDead: 70000 };
-  return { probe: PROBE_MS, mainPing: 2000, mainDead: DEAD_MS, bakPing: PROBE_MS, bakDead: PROBE_MS * 2 + 2000 };
-}
-function pickBest(except) {
-  const now = performance.now();
-  const fresh = b => now - b.lastPong < cfg(b).probe * 2 + 5000;
-  const ok = brokers.filter(b => b !== except && b.up && b.welcomed && fresh(b)).sort((x, y) => score(x) - score(y));
-  return ok[0] || brokers.filter(b => b !== except && b.up && b.welcomed).sort((x, y) => score(x) - score(y))[0] || null;
-}
-function failover(why) {
-  const next = pickBest(active);
-  if (next) setActive(next, why);
-  else { active = null; render(); if (!lanOk() && !p2pOpen()) status('Mất kết nối với mọi kênh, đang thử lại…', 'bad'); }
-}
-
-function onChannelUp(b, tc) {
-  if (b.up) return;                    // EventSource có thể báo "open" 2 lần
-  b.up = true; b.failed = false;
-  if (!b.tConn) { b.tConn = Math.round(performance.now() - tc); log(`[${b.name}] nối được sau ${b.tConn} ms`); }
-  else log(`[${b.name}] nối lại được`);
-  b.state = `nối ${b.tConn} ms · chờ PC chào`;
-  b.helloAt = b.lastProbe = performance.now();
-  sendVia(b, { type: 'hello' });
-  render();
-}
-// Mạng vừa thay đổi (bật/tắt Wi-Fi, mất Internet…) -> dò nội bộ ngay ở vòng lặp kế, không chờ 15 s
-function netChanged(why) {
-  if (!running || lanOk() || lan.cut || lan.probing) return;
-  if (performance.now() - lan.lastProbe > 1500) { log(`Mạng thay đổi (${why}) → dò nội bộ ngay`); lan.lastProbe = 0; }
-}
-function onChannelDown(b) {
-  if (b.up) { log(`[${b.name}] mất kết nối`); netChanged(`${b.name} rớt`); }
-  b.up = false; b.welcomed = false;
-  b.state = b === killed ? 'đã tắt thử' : 'mất kết nối, đang thử lại…';
-  if (b === active) failover('kênh đang dùng mất kết nối'); else render();
-}
-function newChannel(def) {
-  return { ...def, client: null, up: false, welcomed: false, failed: false, rtts: [], lastPong: 0, lastProbe: 0, lastPing: 0, tConn: 0, state: 'đang nối…' };
-}
-function makeBroker(def) {
-  const b = newChannel(def);
-  const tc = performance.now();
-  b.client = mqtt.connect(def.url, { clientId: 'spa-' + DEV + '-' + def.name, clean: true, keepalive: 20, reconnectPeriod: 3000, connectTimeout: 10000 });
-  b.client.on('connect', () => { b.client.subscribe([base + '/pc', base + '/status'], { qos: 1 }); onChannelUp(b, tc); });
-  b.client.on('close', () => onChannelDown(b));
-  b.client.on('error', e => { b.failed = true; b.state = 'lỗi: ' + ((e && e.message) || '?'); render(); });
-  b.client.on('offline', () => { b.failed = true; if (!b.up) b.state = 'không nối được, đang thử lại…'; render(); });
-  b.client.on('message', async (topic, payload) => { const m = await open(payload.toString()); if (m) onMsg(m, b); else log(`[${b.name}] tin không giải mã được`); });
-  return b;
-}
-
-// ---------- kênh báo tin: ntfy (HTTP, không cần thư viện) ----------
-// Nhận: EventSource (server đẩy về). Gửi: POST. "cache=no": ntfy không lưu lại tin.
-function makeNtfy(def) {
-  const b = newChannel(def);
-  const tc = performance.now();
-  const es = new EventSource(`${NTFY}spa-${hex}-p/sse`);
-  b.client = {
-    publish: (topic, payload) => fetch(`${NTFY}spa-${hex}-d?cache=no`, { method: 'POST', body: payload })
-      .then(r => { if (!r.ok) log(`[ntfy] gửi lỗi HTTP ${r.status}`); }).catch(e => log('[ntfy] gửi lỗi: ' + e.message)),
-    end: () => es.close(),
-  };
-  es.onopen = () => onChannelUp(b, tc);
-  es.onerror = () => { if (es.readyState === 2) b.failed = true; if (b.up) onChannelDown(b); else { b.state = 'không nối được, đang thử lại…'; render(); } };
-  es.onmessage = async e => {
-    try {
-      const ev = JSON.parse(e.data);
-      if (ev.event !== 'message' || !ev.message) return;
-      const m = await open(ev.message);
-      if (m) onMsg(m, b);
-    } catch {}
-  };
-  return b;
-}
-
-// ---------- kênh báo tin: Nostr (mạng relay độc lập; mỗi tin ký Schnorr bằng khóa tạm của trang) ----------
-function makeNostr(def) {
-  const b = newChannel(def);
-  const tc = performance.now();
-  const sk = NostrTools.generateSecretKey();          // khóa tạm, chỉ để ký tin, không phải danh tính
-  const tagIn = `spa-${hex}-p`, tagOut = `spa-${hex}-d`;
-  let ws = null, stopped = false, retry = 2000;
-  function openWS() {
-    try { ws = new WebSocket(def.nostr); } catch { return; }
-    ws.onopen = () => {
-      retry = 2000;
-      ws.send(JSON.stringify(['REQ', 'spa', { kinds: [NOSTR_KIND], '#t': [tagIn], since: Math.floor(Date.now() / 1000) - 10 }]));
-      onChannelUp(b, tc);
-    };
-    ws.onmessage = async e => {
-      let a; try { a = JSON.parse(e.data); } catch { return; }
-      if (a[0] === 'EVENT' && a[2] && a[2].content) { const m = await open(a[2].content); if (m) onMsg(m, b); }
-      else if (a[0] === 'OK' && a[2] === false) log(`[${b.name}] relay từ chối tin: ${a[3]}`);
-      else if (a[0] === 'NOTICE' || a[0] === 'CLOSED') log(`[${b.name}] ${a[0]}: ${a.slice(1).join(' ')}`);
-    };
-    ws.onclose = () => {
-      if (stopped) return;
-      if (b.up) onChannelDown(b); else { b.failed = true; b.state = 'không nối được, đang thử lại…'; render(); }
-      setTimeout(openWS, retry); retry = Math.min(retry * 2, 60000);
-    };
-  }
-  b.client = {
-    publish: (topic, payload) => {
-      if (!ws || ws.readyState !== 1) return;
-      const ev = NostrTools.finalizeEvent({ kind: NOSTR_KIND, created_at: Math.floor(Date.now() / 1000), tags: [['t', tagOut]], content: payload }, sk);
-      ws.send(JSON.stringify(['EVENT', ev]));
-    },
-    end: () => { stopped = true; try { ws.close(); } catch {} },
-  };
-  openWS();
-  return b;
-}
-const makeChannel = d => d.ntfy ? makeNtfy(d) : d.nostr ? makeNostr(d) : makeBroker(d);
-
-function ensureInternet(why) {
-  if (internetStarted || !running) return;
-  internetStarted = true;
-  clearTimeout(internetTimer);
-  log(`Internet: nối ${LIST.length} kênh báo tin (${why})`);
-  if (!lanOk()) status(`Đang nối qua Internet (${why})…`);
-  brokers = LIST.filter(d => !d.nostr || window.NostrTools).map(makeChannel);
-  render();
-}
-
-// ---------- P2P ----------
-function waitGathering(pc, ms) {
-  return new Promise(res => {
-    if (pc.iceGatheringState === 'complete') return res();
-    const t = setTimeout(res, ms);
-    pc.addEventListener('icegatheringstatechange', () => { if (pc.iceGatheringState === 'complete') { clearTimeout(t); res(); } });
-  });
-}
-async function startP2P() {
-  if (!active || p2p.state === 'trying' || p2p.state === 'open') return;
-  const myTry = ++p2p.tries;
-  p2p.state = 'trying'; p2p.note = `đang thử (lần ${myTry})…`; render();
-  const t0 = performance.now();
-  p2p.sid = Math.random().toString(36).slice(2, 12);
-  const pc = new RTCPeerConnection({ iceServers: ICE });
-  const dc = pc.createDataChannel('spa');
-  p2p.pc = pc; p2p.dc = dc;
-  clearTimeout(p2p.timer);
-  p2p.timer = setTimeout(() => { if (p2p.pc === pc && p2p.state === 'trying') failP2P('hết 20 giây, đục lỗ không được'); }, P2P_TIMEOUT);
-  dc.onopen = () => {
-    if (p2p.pc !== pc) return;
-    clearTimeout(p2p.timer);
-    p2p.state = 'open'; p2p.lastPong = performance.now(); p2p.delay = 5000;
-    p2p.note = p2p.pair || 'đã mở';
-    if ($('tP2P').textContent === '–') $('tP2P').textContent = `${since()} (lần thử này ${Math.round(performance.now() - t0)} ms)`;
-    log(`P2P MỞ sau ${Math.round(performance.now() - t0)} ms`);
-    if (!lanOk()) status('Đã thông với PC qua P2P trực tiếp', 'ok');
-    render();
-  };
-  dc.onmessage = e => { try { onMsg(JSON.parse(e.data), 'p2p'); } catch {} };
-  dc.onclose = () => { if (p2p.pc === pc) failP2P('kênh P2P đóng'); };
-  pc.oniceconnectionstatechange = () => {
-    if (p2p.pc !== pc) return;
-    if (pc.iceConnectionState === 'failed') failP2P('ICE thất bại');
-  };
-  try {
-    await pc.setLocalDescription(await pc.createOffer());
-    await waitGathering(pc, 2500);
-    if (p2p.pc !== pc) return;
-    const sdp = onlyV4(pc.localDescription.sdp);
-    const n = (sdp.match(/a=candidate:/g) || []).length;
-    log(`P2P: gửi lời mời (${n} địa chỉ) qua ${active ? active.name : '?'}`);
-    p2p.note = `đã gửi lời mời qua ${active ? active.name : '?'}, chờ PC…`; render();
-    if (!(await sendVia(active, { type: 'offer', sid: p2p.sid, sdp }))) failP2P('không có kênh để gửi lời mời');
-  } catch (e) { failP2P('lỗi: ' + e.message); }
-}
-async function onAnswer(m) {
-  if (m.sid !== p2p.sid || !p2p.pc || p2p.state !== 'trying') return;
-  p2p.note = 'PC đã trả lời, đang đục lỗ…'; render();
-  try { await p2p.pc.setRemoteDescription({ type: 'answer', sdp: onlyV4(m.sdp) }); }
-  catch (e) { failP2P('answer lỗi: ' + e.message); }
-}
-function closePC() {
-  clearTimeout(p2p.timer);
-  const pc = p2p.pc; p2p.pc = null; p2p.dc = null;
-  if (pc) { try { pc.close(); } catch {} }
-}
-function failP2P(why, retry = true) {
-  const wasOpen = p2p.state === 'open';
-  closePC();
-  p2p.state = retry ? 'failed' : 'off';
-  if (!wasOpen) p2p.delay = Math.min(p2p.delay * 2, 120000);
-  p2p.retryAt = performance.now() + (wasOpen ? 3000 : p2p.delay);
-  p2p.note = retry ? `${why} · thử lại sau ${Math.round((p2p.retryAt - performance.now()) / 1000)} s` : why;
-  log(`P2P ${wasOpen ? 'đóng' : 'không được'}: ${why}`);
-  if (wasOpen && retry) netChanged('P2P rớt');
-  sendVia(active, { type: 'p2p_off', why });
-  render();
-}
-
-// ---------- nhận tin (từ nội bộ, P2P hoặc kênh báo tin) ----------
-async function onMsg(m, via) {
-  const vname = via === 'p2p' ? 'P2P' : via === 'lan' ? 'nội bộ' : via.name;
-  if (m.type === 'presence') { if (!m.online && via.name) { via.welcomed = false; via.state = 'PC báo tắt'; render(); } return; }
-  if (m.to && m.to !== DEV) return;
-  if (m.not === DEV) return;
-  if (via !== 'p2p' && m.t && Math.abs(Date.now() - m.t) > 60000) return;
-  if (m.type === 'pong') {
-    const p = sent[m.seq]; if (!p || p.via !== via) return;
-    delete sent[m.seq];
-    const obj = via === 'p2p' ? p2p : via === 'lan' ? lan : via;
-    obj.rtts.push(Math.round(performance.now() - p.t)); if (obj.rtts.length > 20) obj.rtts.shift();
-    obj.lastPong = performance.now();
-    if ((via === 'p2p' || via === 'lan') && obj.rtts.length === 10 && !statsSent) { statsSent = true; sendStats(); }
-    render();
-    return;
-  }
-  if (m.mid) { if (seen.has(m.mid)) return; seen.add(m.mid); seenQ.push(m.mid); if (seenQ.length > 300) seen.delete(seenQ.shift()); }
-  if (m.type === 'welcome') {
-    if (Array.isArray(m.lan) && m.lan.length) { store.set('spa-lan', m.lan); showLanInfo(); }   // nhớ địa chỉ nội bộ của PC
-    $('num').textContent = '#' + m.num;
-    if (!firstDone) { firstDone = true; $('tFirst').textContent = `${since()} (qua ${vname})`; }
-  }
-  if (m.type === 'welcome' && via === 'lan') {
-    lan.welcomed = true; lan.lastPong = performance.now();
-    lan.state = `${lan.host} · PC chào sau ${Math.round(performance.now() - lan.helloAt)} ms`;
-    log(`Nội bộ: thông với PC ở ${lan.host}`);
-    status('Đã thông với PC qua mạng nội bộ', 'ok');
-    if (p2p.state === 'open' || p2p.state === 'trying') failP2P('đã có mạng nội bộ', false);   // không cần P2P nữa
-    // vẫn giữ kênh Internet làm dự phòng, nối chậm lại 5 s cho nhẹ
-    if (!internetStarted) { clearTimeout(internetTimer); internetTimer = setTimeout(() => ensureInternet('dự phòng'), 5000); }
-    render();
-  } else if (m.type === 'welcome' && via !== 'p2p') {
-    via.welcomed = true; via.lastPong = performance.now();
-    via.state = `nối ${via.tConn} ms · PC chào ${Math.round(performance.now() - via.helloAt)} ms`;
-    if (!active || !active.up || !active.welcomed || (active.ntfy && !via.ntfy)) setActive(via, active ? 'tốt hơn' : 'trả lời đầu tiên');
-    if (!lanOk() && !p2pOpen()) status(`Đã thông với PC qua ${active.name}${lanOk() ? '' : ', đang thử P2P…'}`, 'ok');
-    render();
-  } else if (m.type === 'answer') onAnswer(m);
-  else if (m.type === 'p2p_welcome') {
-    // Safari giấu địa chỉ IP trong getStats -> lấy theo PC báo về
-    const ip = s => (s || '').replace(/^\w+ /, '').replace(/ \(\w+\)$/, '');
-    p2p.pair = `${(m.pcSide || '').includes('[') ? 'IPv6' : 'IPv4'} · iPhone ${ip(m.phoneSide)} ⇄ PC ${ip(m.pcSide)}`;
-    p2p.note = p2p.pair; render();
-  }
-  else if (m.type === 'text') chat(`${m.from} (qua ${vname}): ${m.text}`);
-  else if (m.type === 'ack') chat(`PC: ${m.text}`);
-}
-
-function sendStats() {
-  const bs = brokers.map(b => `${b.name} ${b.welcomed ? (median(b.rtts) ?? '?') + 'ms' : '✕'}`).join(', ');
-  send({ type: 'stats', text: `[${VERSION}] thông ${$('tFirst').textContent} · nội bộ ${lanOk() ? lan.host + ' ' + median(lan.rtts) + 'ms' : '✕'} · P2P ${p2pOpen() ? median(p2p.rtts) + 'ms ' + p2p.pair : '✕'} · kênh: ${bs || '(chưa nối)'}` });
-}
-
-// ---------- vòng lặp 0,5 giây ----------
-function ping(via) {
-  const n = ++seq; sent[n] = { t: performance.now(), via };
-  if (via === 'p2p') sendP2P({ type: 'ping', seq: n });
-  else if (via === 'lan') sendLAN({ type: 'ping', seq: n });
-  else sendVia(via, { type: 'ping', seq: n, active: via === active }, 0);
-}
-function loop() {
-  if (!running || document.hidden) return;
-  const now = performance.now();
-  for (const k in sent) if (now - sent[k].t > 15000) delete sent[k];
-  // 1. Nội bộ: ping mỗi 2 s; không có thì dò lại địa chỉ đã biết mỗi 6 s (và ngay khi mạng đổi), quét cả dải mỗi 3 phút
-  if (lanOk()) {
-    if (now - lan.lastPing >= 2000) { lan.lastPing = now; ping('lan'); }
-    if (now - lan.lastPong > DEAD_MS) { log('Nội bộ: PC không trả lời'); try { lan.ws.close(); } catch {} }
-  } else if (!lan.cut && !lan.up) {
-    if (now - lan.lastProbe > 6000) probeKnown();
-    if (!HTTP_PAGE && !lan.probing && now - lan.lastScan > 180000 && now - tStart > 4000) scanSubnets();
-  }
-  // 2. P2P
-  if (p2pOpen()) {
-    if (now - p2p.lastPing >= 2000) { p2p.lastPing = now; ping('p2p'); }
-    if (now - p2p.lastPong > DEAD_MS) failP2P(`${Math.round((now - p2p.lastPong) / 1000)} giây không trả lời`);
-  }
-  // 3. Kênh báo tin đang dùng: là đường chính thì ping dày, chỉ dự phòng thì ping thưa
-  if (active && active.up) {
-    const main = !lanOk() && !p2pOpen(), c = cfg(active);
-    const every = main ? c.mainPing : c.bakPing, dead = main ? c.mainDead : c.bakDead;
-    if (now - active.lastPing >= every) { active.lastPing = now; ping(active); }
-    if (active.lastPong && now - active.lastPong > dead) {
-      log(`[${active.name}] không trả lời`); active.welcomed = false; active.state = 'không trả lời'; failover('kênh đang dùng không trả lời');
-    }
-    // đang dùng kênh hạng thấp (Nostr/ntfy) mà kênh hạng cao (MQTT) đã thông lại -> đổi về
-    const better = active && pickBest(active);
-    if (better && score(better) < score(active) - 20000) setActive(better, `${better.name} đã thông lại`);
-  }
-  for (const b of brokers) {
-    if (b === active || !b.up || now - b.lastProbe < cfg(b).probe) continue;
-    b.lastProbe = now;
-    if (!b.welcomed || b.ntfy) { b.helloAt = now; sendVia(b, { type: 'hello' }); continue; }
-    ping(b);
-  }
-  // 4. Thử P2P khi không có nội bộ
-  if (!lanOk() && active && active.welcomed && (p2p.state === 'off' || p2p.state === 'failed') && now >= p2p.retryAt) startP2P();
-  if (p2p.state === 'failed') p2p.note = p2p.note.replace(/thử lại sau \d+ s/, `thử lại sau ${Math.max(0, Math.round((p2p.retryAt - now) / 1000))} s`);
-  render();
-}
-
-// ---------- bắt đầu ----------
-async function connect() {
-  if (!window.mqtt) { status('Chưa tải được thư viện MQTT. Tải lại trang.', 'bad'); return; }
-  const code = $('code').value.trim();
-  if (code.replace(/[^A-Za-z0-9]/g, '').length < 8) { status('Nhập đủ 8 ký tự mã ghép đôi.', 'bad'); return; }
-  store.set('spa-code', code);
-  teardown();
-  $('go').disabled = true; $('stop').disabled = false;
-  tStart = performance.now(); statsSent = false; firstDone = false;
-  $('tFirst').textContent = '–'; $('tP2P').textContent = '–';
-  status('Đang tạo khóa…');
-  try { await derive(code); } catch (e) { status(e.message, 'bad'); $('go').disabled = false; return; }
-  running = true;
-  Object.assign(p2p, { state: 'off', note: 'chưa cần', rtts: [], delay: 5000, retryAt: 0, tries: 0, pair: '' });
-  Object.assign(lan, { rtts: [], up: false, welcomed: false, lastProbe: 0, lastScan: performance.now(), cut: false, state: NO_LAN ? 'bỏ qua (noibo=0)' : 'đang tìm…' });
-  tick = setInterval(loop, 500);
-  // 1. Thử nội bộ trước. 2. Sau 1,5 s chưa thông nội bộ -> nối Internet (nội bộ vẫn được dò ngầm).
-  const addrs = lanAddrs();
-  log(`Khóa xong sau ${since()}. ${addrs.length ? 'Thử nội bộ ' + addrs.join(', ') : 'Chưa biết địa chỉ nội bộ'}`);
-  status(addrs.length ? 'Đang tìm máy chủ nội bộ…' : 'Đang nối qua Internet…');
-  if (addrs.length) {
-    probeKnown();
-    internetTimer = setTimeout(() => { if (!lanOk()) ensureInternet('chưa thấy nội bộ sau 1,5 s'); }, LAN_WAIT);
-  } else ensureInternet('chưa biết địa chỉ nội bộ');
-  render();
-}
-function teardown() {
-  running = false; clearInterval(tick); clearTimeout(internetTimer); closePC();
-  if (lan.ws) { const w = lan.ws; lan.ws = null; try { w.close(); } catch {} }
-  lan.up = lan.welcomed = false; lan.state = 'chưa tìm';
-  for (const b of brokers) { try { b.client.end(true); } catch {} }
-  brokers = []; active = null; killed = null; sent = {}; lastPath = null; internetStarted = false;
-  p2p.state = 'off'; p2p.note = 'chưa thử';
-  render();
-}
-
-$('go').onclick = connect;
-$('stop').onclick = async () => { await send({ type: 'bye' }); teardown(); $('go').disabled = false; $('stop').disabled = true; status('Đã ngắt'); };
-$('send').onclick = async () => {
-  const v = $('msg').value.trim(); if (!v) return;
-  const via = lanOk() ? 'nội bộ' : p2pOpen() ? 'P2P' : active ? active.name : null;
-  if (!via) { chat('(chưa có đường nào tới PC)'); return; }
-  $('msg').value = '';
-  chat(`Tôi (qua ${via}): ${v}`);
-  await send({ type: 'text', text: v });
-};
-$('msg').addEventListener('keydown', e => { if (e.key === 'Enter') $('send').click(); });
-$('cutLan').onclick = () => {
-  lan.cut = !lan.cut;
-  if (lan.cut) { log('Thử cắt mạng nội bộ'); if (lan.ws) try { lan.ws.close(); } catch {} ensureInternet('cắt thử nội bộ'); }
-  else { log('Bật lại mạng nội bộ'); lan.lastProbe = 0; }
-  render();
-};
-$('cutP2P').onclick = () => failP2P('bạn bấm thử cắt');
-$('kill').onclick = () => { if (!active) return; killed = active; log(`Thử làm hỏng ${killed.name}`); killed.client.end(true); onChannelDown(killed); };
-$('revive').onclick = () => {
-  if (!killed) return;
-  const i = brokers.indexOf(killed), def = LIST.find(d => d.name === killed.name);
-  if (i >= 0) brokers[i] = makeChannel(def);
-  log(`Bật lại ${killed.name}`); killed = null; render();
-};
-$('lanAdd').onclick = () => {
-  const ip = $('lanAddr').value.trim();
-  if (!isPrivate(ip)) { log('Địa chỉ nội bộ phải dạng 192.168.x.x, 10.x.x.x hoặc 172.16-31.x.x'); return; }
-  const m = store.get('spa-lan-manual', []); if (!m.includes(ip)) m.unshift(ip); store.set('spa-lan-manual', m.slice(0, 4));
-  $('lanAddr').value = ''; showLanInfo(); lan.lastProbe = 0;
-};
-$('lanScan').onclick = () => { if (running) { lan.lastProbe = 0; probeKnown().then(f => { if (!f) scanSubnets(); }); } };
-
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden || !running) return;
-  const now = performance.now();
-  for (const b of brokers) if (b.up && !b.ntfy) { b.helloAt = now; sendVia(b, { type: 'hello' }); }
-  if (active) active.lastPong = now;                         // tránh chuyển nhầm vì thời gian ngủ
-  if (lanOk()) { lan.lastPong = now; ping('lan'); }          // iOS cắt WebSocket thì onclose tự tìm lại
-  else lan.lastProbe = 0;                                    // quay lại app: dò nội bộ ngay
-  if (p2pOpen()) { p2p.lastPong = now; ping('p2p'); }
-  else if (p2p.state === 'failed') p2p.retryAt = now + 1000;
-});
-window.addEventListener('pagehide', () => send({ type: 'bye' }));
-window.addEventListener('online', () => netChanged('có mạng trở lại'));
-window.addEventListener('offline', () => netChanged('mất mạng'));
-window.addEventListener('error', e => log('Lỗi trang: ' + e.message));
-
-showLanInfo();
-render();
-// Đã từng nhập mã -> điền sẵn và tự kết nối ngay khi mở
-const saved = store.get('spa-code', null) || (store.get('spa-kc', null) || {}).n;
-if (saved) { $('code').value = saved; if (window.mqtt) setTimeout(connect, 0); }
-// Bản sao trong máy (chỉ có khi trang chạy qua https)
-if ('serviceWorker' in navigator && location.protocol === 'https:')
-  navigator.serviceWorker.register('sw.js').catch(e => log('Không cài được bản lưu: ' + e.message));
-})();
-</script>
+<script src="js/conn.js"></script>
+<script src="js/app.js"></script>
 </body>
 </html>
