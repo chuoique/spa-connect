@@ -7,7 +7,7 @@
  */
 (() => {
 'use strict';
-const APP_VERSION = 'Spa 0.14';
+const APP_VERSION = 'Spa 0.15';
 const $ = s => document.querySelector(s);
 
 // ---------- tiện ích giao diện ----------
@@ -31,7 +31,7 @@ const pad = n => String(n).padStart(2, '0');
 const hm = ms => { const d = new Date(ms); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
 const dmy = ms => { const d = new Date(ms); return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`; };
 const WD = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-const dayLabel = ms => { const d = new Date(ms); return `${WD[d.getDay()]} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}`; };
+const dayLabel = ms => { const d = new Date(ms); return `${(window.I18N && I18N.wd(d.getDay())) || WD[d.getDay()]} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}`; };
 const dayStart = ms => { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); };
 const dateVal = ms => { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 const fromInputs = (date, time) => new Date(`${date}T${time || '00:00'}`).getTime();
@@ -116,8 +116,8 @@ function screenPair(msg) {
   const st = h('p', { class: 'small muted' }, msg || '');
   const btn = h('button', { class: 'btn' }, 'Ghép máy');
   btn.onclick = () => {
-    st.textContent = 'Đang tìm máy chủ và ghép máy…';
-    busy(btn, Conn.pair(code.value, name.value.trim()).then(() => boot()).catch(e => { st.textContent = e.message; }));
+    st.textContent = T('Đang tìm máy chủ và ghép máy…');
+    busy(btn, Conn.pair(code.value, name.value.trim()).then(() => boot()).catch(e => { st.textContent = T(e.message); }));
   };
   $('#app').replaceChildren(h('div', { class: 'wrap center' }, h('div', { class: 'card' },
     LOGO(), h('h1', {}, 'Ghép máy với spa'),
@@ -632,7 +632,7 @@ async function vDevices(el) {
   const code = purpose => api('devices.pair_code', { purpose }).then(r => {
     const end = Date.now() + r.expires_min * 60000;
     const left = h('p', { class: 'small muted' });
-    const tm = setInterval(() => { const s = Math.max(0, Math.round((end - Date.now()) / 1000)); left.textContent = s ? `Hết hạn sau ${Math.floor(s / 60)}:${pad(s % 60)}` : 'Đã hết hạn'; if (!s) clearInterval(tm); }, 1000);
+    const tm = setInterval(() => { const s = Math.max(0, Math.round((end - Date.now()) / 1000)); left.textContent = T(s ? `Hết hạn sau ${Math.floor(s / 60)}:${pad(s % 60)}` : 'Đã hết hạn'); if (!s) clearInterval(tm); }, 1000);
     sheet(purpose === 'customer' ? 'Mã ghép máy cho khách' : 'Mã ghép máy nhân viên', h('div', { style: 'display:grid;gap:10px;text-align:center' },
       h('div', { class: 'big', style: 'font-size:30px' }, r.code), left,
       h('p', { class: 'small muted' }, 'Trên máy mới: mở app Spa → nhập mã này. Mã chỉ dùng được một lần.')));
@@ -653,7 +653,7 @@ function deviceSheet(d) {
       h('dt', {}, 'Người dùng'), h('dd', {}, d.user || '—'), h('dt', {}, 'Lần cuối'), h('dd', {}, d.last_seen ? `${dmy(d.last_seen)} ${hm(d.last_seen)}` : '—')),
     field('Tên máy', name)),
     [h('button', { class: 'btn', onclick: () => api('devices.rename', { id: d.id, name: name.value.trim() }).then(() => { close(); go('devices'); }).catch(() => {}) }, 'Đổi tên'),
-     !d.this && !d.revoked && h('button', { class: 'btn bad', onclick: () => { if (window.confirm(`Thu hồi "${d.name}"? Máy này sẽ không kết nối được nữa.`)) api('devices.revoke', { id: d.id }).then(() => { toast('Đã thu hồi'); close(); go('devices'); }).catch(() => {}); } }, 'Thu hồi')]);
+     !d.this && !d.revoked && h('button', { class: 'btn bad', onclick: () => { if (window.confirm(T(`Thu hồi "${d.name}"? Máy này sẽ không kết nối được nữa.`))) api('devices.revoke', { id: d.id }).then(() => { toast('Đã thu hồi'); close(); go('devices'); }).catch(() => {}); } }, 'Thu hồi')]);
 }
 
 // ---------- báo cáo ----------
@@ -885,10 +885,10 @@ async function scanSheet() {
   sheet('Quét mã', h('div', { style: 'display:grid;gap:8px' }, video, st, manual));
   let stream;
   try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }); }
-  catch (e) { st.textContent = 'Không mở được camera: ' + e.message + '. Kiểm tra quyền camera trong Cài đặt.'; return; }
+  catch (e) { st.textContent = T('Không mở được camera: ') + T(e.message) + T('. Kiểm tra quyền camera trong Cài đặt.'); return; }
   video.srcObject = stream;
   try { await video.play(); } catch {}
-  st.textContent = 'Đưa mã QR vào khung hình…';
+  st.textContent = T('Đưa mã QR vào khung hình…');
   const cv = document.createElement('canvas'), ctx = cv.getContext('2d', { willReadFrequently: true });
   const stopAll = () => stream.getTracks().forEach(t => t.stop());
   const tick = () => {
@@ -999,11 +999,11 @@ async function vSystem(el) {
     const st = h('span', { class: 'small muted' }, ' …');
     try {   // thử đúng kiểu kết nối app dùng: mở được wss = máy này đã tin chứng chỉ
       const ws = new WebSocket(`wss://${ip}:${Conn.LAN_HTTPS || 8443}/ws`);
-      const done = (ok) => { st.textContent = ok ? ' ✅ máy này đã tin chứng chỉ' : ' ⚠ chưa tin (hoặc không cùng mạng)'; if (ok) st.style.color = 'green'; try { ws.close(); } catch (e) {} };
+      const done = (ok) => { st.textContent = T(ok ? ' ✅ máy này đã tin chứng chỉ' : ' ⚠ chưa tin (hoặc không cùng mạng)'); if (ok) st.style.color = 'green'; try { ws.close(); } catch (e) {} };
       const t = setTimeout(() => done(false), 5000);
       ws.onopen = () => { clearTimeout(t); done(true); };
       ws.onerror = () => { clearTimeout(t); done(false); };
-    } catch (e) { st.textContent = ' ⚠ không kiểm tra được'; }
+    } catch (e) { st.textContent = T(' ⚠ không kiểm tra được'); }
     return h('div', { class: 'small' }, `Máy chủ ${ip}:`, st,
       isIOS ? [' · ', h('a', { href: `http://${ip}:${Conn.LAN_HTTP}/ca.crt`, target: '_blank', rel: 'noopener' }, 'tải qua Safari')] : null);
   });
@@ -1102,7 +1102,7 @@ async function vSystem(el) {
     }
   }
   cards.push(...techCards);
-  cards.push(h('details', { class: 'card' }, h('summary', {}, T('Nhật ký kỹ thuật')), h('pre', { class: 'log' }, S.log.slice(-120).join('\n'))));
+  cards.push(h('details', { class: 'card' }, h('summary', {}, T('Nhật ký kỹ thuật')), h('pre', { class: 'log' }, S.log.slice(-120).map(T).join('\n'))));
   el.replaceChildren(...cards);
 }
 // Giao diện hiển thị: [tên tiếng Việt, tên tiếng Anh, màu thanh trạng thái]
@@ -1147,7 +1147,7 @@ Conn.on('welcome', m => {
 Conn.on('state', d => {
   const b = $('#cbadge');
   if (b) b.replaceWith(connBadge());
-  const cs = $('#cstate'); if (cs) cs.textContent = `Nội bộ: ${d.lan.state}` + (d.internetStarted ? ` · Internet: ${d.channels.filter(c => c.up).length}/${d.channels.length} kênh` : '');
+  const cs = $('#cstate'); if (cs) cs.textContent = T(`Nội bộ: ${d.lan.state}` + (d.internetStarted ? ` · Internet: ${d.channels.filter(c => c.up).length}/${d.channels.length} kênh` : ''));
   const ban = $('#banner');
   if (ban) ban.replaceChildren(...(d.path ? [] : [h('div', { class: 'wrap', style: 'padding-bottom:0' }, h('div', { class: 'banner' }, 'Mất kết nối tới máy chủ, đang tự nối lại…'))]));
 });
