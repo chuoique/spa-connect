@@ -3,25 +3,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Spa</title>
+<title>MND Citta</title>
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Spa">
-<meta name="theme-color" content="#0f766e">
+<meta name="apple-mobile-web-app-title" content="MND Citta">
+<meta name="theme-color" content="#8a6d24">
 <style>
+/* Màu theo logo MND Citta: vàng ánh kim #a08235 (đậm hơn một chút cho chữ dễ đọc) */
 :root{
-  --bg:#f3f5f4; --card:#ffffff; --fg:#17201e; --muted:#5f6b68; --line:#dde3e1; --soft:#eef3f2;
-  --brand:#0f766e; --brand-fg:#ffffff; --brand-soft:#e3f2ef;
+  --bg:#f6f4ef; --card:#ffffff; --fg:#1f1b14; --muted:#6b6455; --line:#e4ddcd; --soft:#f3eee3;
+  --brand:#8a6d24; --brand-fg:#ffffff; --brand-soft:#f4ecd8;
   --ok:#15803d; --warn:#b45309; --bad:#b91c1c; --info:#1d4ed8;
   --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
   --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
   --r:12px;
 }
 @media (prefers-color-scheme:dark){:root{
-  --bg:#0f1514; --card:#18211f; --fg:#e4ecea; --muted:#97a6a2; --line:#2a3633; --soft:#1f2a28;
-  --brand:#2dd4bf; --brand-fg:#06201d; --brand-soft:#123430;
+  --bg:#121110; --card:#1c1a17; --fg:#ece6da; --muted:#a69d8b; --line:#332e26; --soft:#25211b;
+  --brand:#d4b465; --brand-fg:#1f1705; --brand-soft:#2e2615;
   --ok:#4ade80; --warn:#fbbf24; --bad:#f87171; --info:#7aa2ff; color-scheme:dark}}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 var(--sans);-webkit-text-size-adjust:100%}
@@ -105,6 +107,27 @@ pre.log{margin:0;font:11px/1.4 var(--mono);white-space:pre-wrap;word-break:break
 .line{display:grid;grid-template-columns:1fr 64px 110px auto;gap:6px;align-items:center}
 @media (max-width:480px){.line{grid-template-columns:1fr 54px 92px auto}}
 .total{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+.combo{position:relative;display:grid}
+.combo .pick{position:absolute;left:0;right:0;top:100%;z-index:5;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:4px;box-shadow:0 6px 18px rgba(0,0,0,.15);margin-top:2px}
+.combo .pick[hidden]{display:none}
+.hbtn{border:0;background:var(--soft);border-radius:99px;width:34px;height:34px;cursor:pointer;font-size:16px;flex:none}
+.qr{display:grid;justify-items:center;gap:6px;text-align:center}
+.qr img{width:180px;height:180px;image-rendering:pixelated;background:#fff;padding:8px;border-radius:10px}
+.grp{font-size:12px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;margin-top:4px}
+/* thẻ thành viên để in */
+.membercard{width:85.6mm;height:54mm;border-radius:4mm;padding:4mm 5mm;background:linear-gradient(135deg,#1f1a12,#3b2f19);color:#e9d6a0;
+  display:grid;grid-template-columns:1fr auto;gap:2mm;align-items:center;box-sizing:border-box;margin:0 auto}
+.membercard .logo{width:30mm;height:auto;background:none;padding:0;image-rendering:auto}
+.membercard .n{font-size:4.6mm;font-weight:700;color:#f5e7bf} .membercard .c{font:600 3.4mm var(--mono);letter-spacing:.06em}
+.brandlogo{display:block;width:min(220px,70%);height:auto;margin:0 auto 4px}
+@media (prefers-color-scheme:light){.brandlogo{filter:none}}
+.hlogo{width:30px;height:30px;border-radius:8px;flex:none;background:#fff}
+.membercard img{width:30mm;height:30mm;background:#fff;padding:1.5mm;border-radius:2mm;image-rendering:pixelated}
+@media print{
+  body *{visibility:hidden} .print-area,.print-area *{visibility:visible}
+  .print-area{position:absolute;left:0;top:0;width:100%} .scrim{background:none}
+  .membercard{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
 </style>
 </head>
 <body>
@@ -112,6 +135,8 @@ pre.log{margin:0;font:11px/1.4 var(--mono);white-space:pre-wrap;word-break:break
 <script src="lib/forge.min.js"></script>
 <script src="lib/mqtt.min.js"></script>
 <script src="lib/nostr.bundle.js"></script>
+<script src="lib/qrcode.js"></script>
+<script src="lib/jsQR.js"></script>
 <script src="js/conn.js"></script>
 <script src="js/app.js"></script>
 </body>

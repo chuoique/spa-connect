@@ -7,7 +7,7 @@
  */
 (() => {
 'use strict';
-const APP_VERSION = 'Spa 0.1';
+const APP_VERSION = 'Spa 0.2';
 const $ = s => document.querySelector(s);
 
 // ---------- tiện ích giao diện ----------
@@ -61,11 +61,43 @@ function sheet(title, body, actions) {
   return close;
 }
 function field(label, input) { return h('label', { class: 'f' }, label, input); }
+
+// Bỏ dấu tiếng Việt để tìm: "Nguyễn Lân" -> "nguyen lan"
+const vn = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
+
+// Ô chọn gõ để lọc (thay cho danh sách thả xuống dài). el.value = id đã chọn, el.text = chữ đang gõ.
+function combo(items, label, selectedId, placeholder, onChange) {
+  let value = selectedId || '';
+  const cur = items.find(i => i.id === selectedId);
+  const inp = h('input', { placeholder, value: cur ? label(cur) : '', autocomplete: 'off' });
+  const box = h('div', { class: 'pick', hidden: true });
+  const pick = i => { value = i ? i.id : ''; inp.value = i ? label(i) : ''; box.hidden = true; if (onChange) onChange(i); };
+  const show = () => {
+    const q = vn(inp.value), list = items.filter(i => !q || vn(label(i)).includes(q)).slice(0, 40);
+    box.replaceChildren(...list.map(i => h('button', { type: 'button', onmousedown: e => e.preventDefault(), onclick: () => pick(i) }, label(i))));
+    box.hidden = !list.length;
+  };
+  inp.addEventListener('focus', show);
+  inp.addEventListener('input', () => { value = ''; if (onChange) onChange(null); show(); });
+  inp.addEventListener('blur', () => setTimeout(() => { box.hidden = true; }, 150));
+  const el = h('div', { class: 'combo' }, inp, box);
+  Object.defineProperty(el, 'value', { get: () => value });
+  Object.defineProperty(el, 'text', { get: () => inp.value.trim() });
+  return el;
+}
+
+// Ảnh QR (thư viện qrcode-generator, chép sẵn trong lib/)
+function qrImg(text) {
+  const q = qrcode(0, 'M'); q.addData(text); q.make();
+  return h('img', { src: q.createDataURL(8, 2), alt: text });
+}
 function busy(btn, p) { btn.disabled = true; return p.finally(() => { btn.disabled = false; }); }
 
 // ---------- trạng thái app ----------
 const S = { welcome: null, me: null, tab: null, services: [], staff: [], view: null, viewTopic: null, log: [] };
 Conn.on('log', l => { S.log.push(l); if (S.log.length > 200) S.log.shift(); });
+
+const LOGO = () => h('img', { class: 'brandlogo', src: 'logo.png', alt: 'MND Citta Laser Clinic' });
 
 // ---------- màn hình: ghép máy ----------
 function guessName() {
@@ -82,7 +114,7 @@ function screenPair(msg) {
     busy(btn, Conn.pair(code.value, name.value.trim()).then(() => boot()).catch(e => { st.textContent = e.message; }));
   };
   $('#app').replaceChildren(h('div', { class: 'wrap center' }, h('div', { class: 'card' },
-    h('h1', {}, 'Ghép máy với spa'),
+    LOGO(), h('h1', {}, 'Ghép máy với spa'),
     h('p', { class: 'muted small' }, 'Nhập mã ghép máy do chủ spa tạo (mục Thiết bị), hoặc mã khởi tạo in trên cửa sổ máy chủ khi chạy lần đầu. Mỗi máy chỉ cần ghép một lần.'),
     field('Mã ghép máy', code), field('Tên máy này', name), btn, st,
     h('p', { class: 'small muted' }, APP_VERSION))));
@@ -97,7 +129,7 @@ function screenSetup() {
     busy(btn, api('auth.setup_owner', { username: un.value.trim(), display_name: dn.value.trim(), password: pw.value }).then(u => { S.me = u; toast('Đã tạo tài khoản chủ spa'); screenMain(); }).catch(() => {}));
   };
   $('#app').replaceChildren(h('div', { class: 'wrap center' }, h('div', { class: 'card' },
-    h('h1', {}, 'Chào mừng!'), h('p', { class: 'muted small' }, 'Máy này được ghép bằng mã khởi tạo. Hãy tạo tài khoản chủ spa: tài khoản có toàn quyền, dùng để thêm nhân viên, dịch vụ và ghép các máy khác.'),
+    LOGO(), h('h1', {}, 'Chào mừng!'), h('p', { class: 'muted small' }, 'Máy này được ghép bằng mã khởi tạo. Hãy tạo tài khoản chủ spa: tài khoản có toàn quyền, dùng để thêm nhân viên, dịch vụ và ghép các máy khác.'),
     field('Tên đăng nhập', un), field('Tên hiển thị', dn), field('Mật khẩu (ít nhất 6 ký tự)', pw), field('Nhập lại mật khẩu', pw2), btn)));
 }
 function screenLogin() {
@@ -106,14 +138,14 @@ function screenLogin() {
   btn.onclick = () => busy(btn, api('auth.login', { username: un.value.trim(), password: pw.value }).then(u => { S.me = u; screenMain(); }).catch(() => {}));
   pw.addEventListener('keydown', e => { if (e.key === 'Enter') btn.click(); });
   $('#app').replaceChildren(h('div', { class: 'wrap center' }, h('div', { class: 'card' },
-    h('h1', {}, S.welcome ? S.welcome.spa_name : 'Spa'), h('p', { class: 'muted small' }, `Máy: ${S.welcome ? S.welcome.dev_name : ''}`),
+    LOGO(), h('h1', {}, S.welcome ? S.welcome.spa_name : 'Spa'), h('p', { class: 'muted small' }, `Máy: ${S.welcome ? S.welcome.dev_name : ''}`),
     field('Tên đăng nhập', un), field('Mật khẩu', pw), btn,
     h('div', { class: 'row between' }, connBadge(), h('button', { class: 'btn ghost small', onclick: () => sheet('Kết nối', diagPanel()) }, 'Chẩn đoán')))));
 }
 function screenConnecting() {
   const d = Conn.diag();
   $('#app').replaceChildren(h('div', { class: 'wrap center' }, h('div', { class: 'card' },
-    h('h2', {}, 'Đang kết nối tới máy chủ spa…'),
+    LOGO(), h('h2', {}, 'Đang kết nối tới máy chủ spa…'),
     h('p', { class: 'muted small', id: 'cstate' }, `Nội bộ: ${d.lan.state}`),
     h('div', { class: 'row' }, h('button', { class: 'btn ghost small', onclick: () => sheet('Kết nối', diagPanel()) }, 'Chẩn đoán'),
       h('button', { class: 'btn bad small', onclick: unpair }, 'Gỡ ghép máy')))));
@@ -142,8 +174,11 @@ function screenMain() {
   if (!tabs.includes(S.tab)) S.tab = tabs[0];
   $('#app').replaceChildren(
     h('header', { class: 'top' }, h('div', { class: 'in' },
+      h('img', { class: 'hlogo', src: 'icon-192.png', alt: '' }),
       h('div', { class: 'grow' }, h('div', { class: 'spa' }, S.welcome ? S.welcome.spa_name : 'Spa'),
         h('div', { class: 'who' }, `${S.me.display_name || S.me.username} · ${ROLE[S.me.role] || S.me.role}`)),
+      S.me.role !== 'customer' && h('button', { class: 'hbtn', title: 'Tìm nhanh', 'aria-label': 'Tìm nhanh', onclick: quickSearch }, '🔍'),
+      S.me.role !== 'customer' && h('button', { class: 'hbtn', title: 'Quét mã', 'aria-label': 'Quét mã', onclick: scanSheet }, '📷'),
       connBadge())),
     h('div', { id: 'banner' }),
     h('main', { class: 'wrap', id: 'view' }),
@@ -240,8 +275,8 @@ function apptSheet(a) {
   let cust = a.customer_id ? { id: a.customer_id, name: a.customer_name } : null;
   const d = h('input', { type: 'date', value: dateVal(a.start_at || Date.now()) });
   const t = h('input', { type: 'time', value: hm(a.start_at || Date.now()), step: 300 });
-  const sv = h('select', {}, h('option', { value: '' }, '— Chọn dịch vụ —'), S.services.map(s => h('option', { value: s.id, selected: s.id === a.service_id }, `${s.name} · ${s.duration_min} phút · ${money(s.price)}`)));
-  const st = h('select', {}, h('option', { value: '' }, '— Chưa phân công —'), S.staff.filter(u => ['technician', 'owner'].includes(u.role) && u.active).map(u => h('option', { value: u.id, selected: u.id === a.staff_id }, u.display_name || u.username)));
+  const sv = combo(S.services, s => `${s.name} · ${s.duration_min} phút · ${money(s.price)}`, a.service_id, 'Gõ tên dịch vụ…');
+  const st = combo(S.staff.filter(u => ['technician', 'owner'].includes(u.role) && u.active), u => u.display_name || u.username, a.staff_id, 'Gõ tên kỹ thuật viên (để trống: chưa phân công)');
   const note = h('textarea', { value: a.note || '' });
   const btn = h('button', { class: 'btn' }, isNew ? 'Thêm lịch hẹn' : 'Lưu');
   let close;
@@ -268,7 +303,7 @@ async function vCustomers(el) {
   const load = () => api('customers.list', { q: custQ, limit: 200 }).then(rows => box.replaceChildren(...(rows.length ? rows.map(c =>
     h('div', { class: 'item', onclick: () => customerDetail(c.id) },
       h('div', { class: 'l' }, '👤'), h('div', { class: 't' }, c.name), h('div', { class: 'r muted' }, c.points ? `${c.points} điểm` : ''),
-      h('div', { class: 's' }, c.phone || '—'))) : [h('div', { class: 'empty' }, 'Chưa có khách')])));
+      h('div', { class: 's' }, [c.phone, c.code].filter(Boolean).join(' · ') || '—'))) : [h('div', { class: 'empty' }, custQ ? 'Không tìm thấy' : 'Chưa có khách')])));
   let t;
   q.addEventListener('input', () => { custQ = q.value.trim(); clearTimeout(t); t = setTimeout(load, 250); });
   el.replaceChildren(h('div', { class: 'card' }, q,
@@ -280,6 +315,10 @@ async function customerDetail(id) {
   const can = ['owner', 'reception'].includes(S.me.role);
   let close;
   close = sheet(c.name, h('div', { style: 'display:grid;gap:12px' },
+    c.code && h('div', { class: 'row' }, h('div', { class: 'qr', style: 'flex:none' }, qrImg(c.code)),
+      h('div', { class: 'grow', style: 'display:grid;gap:6px' }, h('div', { class: 'big' }, c.code),
+        h('p', { class: 'small muted' }, 'Mã khách: quét bằng nút 📷 hoặc máy quét để mở nhanh hồ sơ này.'),
+        h('button', { class: 'btn ghost small', onclick: () => memberCard(c) }, 'In thẻ thành viên'))),
     h('dl', { class: 'kv' },
       h('dt', {}, 'Điện thoại'), h('dd', {}, c.phone || '—'), h('dt', {}, 'Ngày sinh'), h('dd', {}, c.birthday || '—'),
       h('dt', {}, 'Điểm tích lũy'), h('dd', {}, String(c.points || 0)),
@@ -298,6 +337,16 @@ async function customerDetail(id) {
     h('div', { class: 'list' }, (c.notes || []).length ? c.notes.map(n => h('div', { class: 'item' },
       h('div', { class: 'l' }, dmy(n.created_at).slice(0, 5)), h('div', { class: 't', style: 'white-space:normal' }, n.body), h('div', { class: 'r' }),
       h('div', { class: 's' }, n.staff_name || ''))) : h('div', { class: 'empty' }, 'Chưa có'))));
+}
+// Thẻ thành viên cỡ thẻ ngân hàng (85,6 × 54 mm) có QR mã khách
+function memberCard(c) {
+  const card = h('div', { class: 'print-area' }, h('div', { class: 'membercard' },
+    h('div', { style: 'display:grid;gap:1.6mm' }, h('img', { class: 'logo', src: 'logo.png', alt: 'MND Citta' }),
+      h('div', { class: 'n' }, c.name), h('div', { class: 'c' }, c.code), h('div', { style: 'font-size:2.6mm;opacity:.85;letter-spacing:.08em' }, 'THẺ THÀNH VIÊN')),
+    qrImg(c.code)));
+  sheet('Thẻ thành viên', h('div', { style: 'display:grid;gap:12px' }, card,
+    h('p', { class: 'small muted' }, 'Bấm In (hoặc Chia sẻ → In trên iPhone). Chọn khổ giấy nhỏ hoặc in trên giấy cứng rồi cắt theo viền.')),
+    h('button', { class: 'btn', onclick: () => window.print() }, 'In'));
 }
 function customerEdit(c) {
   const f = { name: h('input', { value: c.name || '' }), phone: h('input', { type: 'tel', value: c.phone || '' }), email: h('input', { type: 'email', value: c.email || '' }),
@@ -368,9 +417,10 @@ function invoiceSheet({ appointment }) {
   const totalEl = h('div', { class: 'total' });
   const recalc = () => { const sub = lines.reduce((s, l) => s + (+l.qty.value || 0) * (+l.price.value || 0), 0); totalEl.textContent = money(sub - (+disc.value || 0)); };
   const addLine = (svc) => {
-    const sel = h('select', {}, h('option', { value: '' }, '— Dịch vụ / sản phẩm —'), S.services.map(s => h('option', { value: s.id, selected: svc && s.id === svc.id }, s.name)));
-    const L = { sel, name: svc ? svc.name : '', qty: h('input', { type: 'number', min: 1, value: 1, inputmode: 'numeric' }), price: h('input', { type: 'number', min: 0, step: 1000, value: svc ? svc.price : '', inputmode: 'numeric' }) };
-    sel.onchange = () => { const s = S.services.find(x => x.id === sel.value); if (s) { L.name = s.name; L.price.value = s.price; } recalc(); };
+    const L = { name: svc ? svc.name : '', qty: h('input', { type: 'number', min: 1, value: 1, inputmode: 'numeric' }), price: h('input', { type: 'number', min: 0, step: 1000, value: svc ? svc.price : '', inputmode: 'numeric' }) };
+    // gõ để lọc dịch vụ; gõ tên khác (sản phẩm bán lẻ…) cũng được, nhập giá tay
+    const sel = combo(S.services, s => s.name, svc && svc.id, 'Dịch vụ / sản phẩm…', s => { if (s) { L.name = s.name; L.price.value = s.price; } else L.name = ''; recalc(); });
+    L.sel = sel;
     L.qty.oninput = L.price.oninput = recalc;
     const rm = h('button', { class: 'x', type: 'button', onclick: () => { lines.splice(lines.indexOf(L), 1); row.remove(); recalc(); } }, '✕');
     const row = h('div', { class: 'line' }, sel, L.qty, L.price, rm);
@@ -381,8 +431,8 @@ function invoiceSheet({ appointment }) {
   const btn = h('button', { class: 'btn' }, 'Thu tiền & lưu hóa đơn');
   let close;
   btn.onclick = () => {
-    const items = lines.map(l => ({ service_id: l.sel.value || null, name: l.name || (l.sel.selectedOptions[0] || {}).text, qty: +l.qty.value, price: +l.price.value, staff_id: appointment && appointment.staff_id }))
-      .filter(l => l.service_id || l.price);
+    const items = lines.map(l => ({ service_id: l.sel.value || null, name: l.name || l.sel.text, qty: +l.qty.value, price: +l.price.value, staff_id: appointment && appointment.staff_id }))
+      .filter(l => l.name && (l.service_id || l.price));
     busy(btn, api('invoices.create', { customer_id: cust && cust.id, appointment_id: appointment && appointment.id, items, discount: +disc.value || 0, method: method.value })
       .then(inv => { toast(`Đã lưu ${inv.number}`); close(); go(S.view); }).catch(() => {}));
   };
@@ -528,8 +578,93 @@ async function vBook(el) {
 async function vProfile(el) {
   const p = await api('my.profile');
   el.replaceChildren(h('div', { class: 'card' }, h('h2', {}, p.name),
+    p.code && h('div', { class: 'qr' }, qrImg(p.code), h('div', { class: 'big' }, p.code), h('p', { class: 'small muted' }, 'Đưa mã này cho lễ tân quét khi đến spa')),
     h('div', { class: 'stats' }, h('div', { class: 'stat' }, 'Điểm tích lũy', h('b', {}, p.points || 0))),
     h('dl', { class: 'kv' }, h('dt', {}, 'Điện thoại'), h('dd', {}, p.phone || '—'), h('dt', {}, 'Email'), h('dd', {}, p.email || '—'))));
+}
+
+// ---------- quét mã (camera / máy quét) ----------
+async function handleScan(raw) {
+  const code = String(raw || '').trim();
+  if (!code) return;
+  document.querySelectorAll('.scrim').forEach(s => s.remove());
+  try {
+    const r = await api('scan.lookup', { code });
+    if (r.kind === 'customer') { toast(`Khách: ${r.name}`); customerDetail(r.id); }
+    else if (r.kind === 'invoice') invoiceDetail(r.id);
+  } catch {}
+}
+// Camera: đọc QR bằng jsQR (chạy trong trình duyệt, cần trang https)
+async function scanSheet() {
+  if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
+    return toast('Quét bằng camera cần bản app https (app cài từ GitHub, hoặc https://IP:8443)', true);
+  const video = h('video', { playsinline: true, muted: true, autoplay: true, style: 'width:100%;max-height:60vh;border-radius:10px;background:#000;object-fit:cover' });
+  const st = h('p', { class: 'small muted' }, 'Đang mở camera…');
+  const manual = h('input', { placeholder: 'Hoặc gõ mã: KH-… / HD-…', autocapitalize: 'characters' });
+  manual.addEventListener('keydown', e => { if (e.key === 'Enter') handleScan(manual.value); });
+  sheet('Quét mã', h('div', { style: 'display:grid;gap:8px' }, video, st, manual));
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }); }
+  catch (e) { st.textContent = 'Không mở được camera: ' + e.message + '. Kiểm tra quyền camera trong Cài đặt.'; return; }
+  video.srcObject = stream;
+  try { await video.play(); } catch {}
+  st.textContent = 'Đưa mã QR vào khung hình…';
+  const cv = document.createElement('canvas'), ctx = cv.getContext('2d', { willReadFrequently: true });
+  const stopAll = () => stream.getTracks().forEach(t => t.stop());
+  const tick = () => {
+    if (!video.isConnected) return stopAll();          // đóng bảng -> tắt camera
+    if (video.readyState >= 2 && video.videoWidth) {
+      const sc = Math.min(1, 640 / video.videoWidth);
+      cv.width = Math.round(video.videoWidth * sc); cv.height = Math.round(video.videoHeight * sc);
+      ctx.drawImage(video, 0, 0, cv.width, cv.height);
+      const img = ctx.getImageData(0, 0, cv.width, cv.height);
+      const res = jsQR(img.data, cv.width, cv.height, { inversionAttempts: 'dontInvert' });
+      if (res && res.data) { stopAll(); if (navigator.vibrate) navigator.vibrate(60); handleScan(res.data); return; }
+    }
+    requestAnimationFrame(tick);
+  };
+  tick();
+}
+// Máy quét USB/Bluetooth: "gõ" mã rất nhanh rồi Enter -> nhận ra dù con trỏ đang ở đâu
+let kbBuf = '', kbLast = 0, kbStart = 0;
+document.addEventListener('keydown', e => {
+  if (!S.me || S.me.role === 'customer') return;
+  const now = performance.now();
+  if (e.key === 'Enter') {
+    const buf = kbBuf; kbBuf = '';
+    if (buf.length >= 6 && now - kbStart < buf.length * 35 + 120 && /^(KH|HD)-/i.test(buf)) {
+      const ae = document.activeElement;
+      if (ae && typeof ae.value === 'string' && ae.value.endsWith(buf)) ae.value = ae.value.slice(0, -buf.length);
+      e.preventDefault(); e.stopPropagation();
+      handleScan(buf);
+    }
+    return;
+  }
+  if (e.key.length !== 1) return;
+  if (now - kbLast > 60) { kbBuf = ''; kbStart = now; }    // người gõ tay chậm hơn nhiều -> bắt đầu lại
+  kbBuf += e.key; kbLast = now;
+}, true);
+
+// ---------- tìm nhanh trên mọi mục ----------
+function quickSearch() {
+  const q = h('input', { type: 'search', placeholder: 'Tên khách, SĐT, mã KH-…, dịch vụ, nhân viên, số hóa đơn…', autocomplete: 'off' });
+  const box = h('div', { style: 'display:grid;gap:6px' });
+  let t, close;
+  const item = (icon, title, sub, onclick) => h('div', { class: 'item', onclick: () => { close(); onclick(); } }, h('div', { class: 'l' }, icon), h('div', { class: 't' }, title), h('div', { class: 'r' }), h('div', { class: 's' }, sub || ''));
+  const run = () => {
+    const v = q.value.trim();
+    if (!v) return box.replaceChildren();
+    api('search.all', { q: v }, true).then(r => {
+      const g = [];
+      if ((r.customers || []).length) g.push(h('div', { class: 'grp' }, 'Khách hàng'), h('div', { class: 'list' }, r.customers.map(c => item('👤', c.name, [c.phone, c.code].filter(Boolean).join(' · '), () => customerDetail(c.id)))));
+      if ((r.services || []).length) g.push(h('div', { class: 'grp' }, 'Dịch vụ'), h('div', { class: 'list' }, r.services.map(s => item('💆', s.name, `${s.duration_min} phút · ${money(s.price)}`, () => S.me.role === 'owner' ? serviceEdit(s) : toast(`${s.name}: ${money(s.price)}`)))));
+      if ((r.staff || []).length) g.push(h('div', { class: 'grp' }, 'Nhân viên'), h('div', { class: 'list' }, r.staff.map(u => item('👥', u.display_name || u.username, ROLE[u.role], () => S.me.role === 'owner' ? staffEdit(u) : toast(u.display_name)))));
+      if ((r.invoices || []).length) g.push(h('div', { class: 'grp' }, 'Hóa đơn'), h('div', { class: 'list' }, r.invoices.map(i => item('🧾', `${i.number} · ${money(i.total)}`, `${i.customer_name || 'Khách lẻ'} · ${dmy(i.created_at)}`, () => invoiceDetail(i.id)))));
+      box.replaceChildren(...(g.length ? g : [h('div', { class: 'empty' }, 'Không tìm thấy')]));
+    }).catch(() => {});
+  };
+  q.addEventListener('input', () => { clearTimeout(t); t = setTimeout(run, 200); });
+  close = sheet('Tìm nhanh', h('div', { style: 'display:grid;gap:10px' }, q, box));
 }
 
 // ---------- hệ thống / chẩn đoán ----------
