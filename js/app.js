@@ -7,7 +7,7 @@
  */
 (() => {
 'use strict';
-const APP_VERSION = 'Spa 0.7';
+const APP_VERSION = 'Spa 0.8';
 const $ = s => document.querySelector(s);
 
 // ---------- tiện ích giao diện ----------
@@ -1012,6 +1012,20 @@ async function vSystem(el) {
           h('dt', {}, 'Máy đang kết nối'), h('dd', {}, st.sessions.map(s => `${s.dev_name}${s.user ? ' (' + s.user + ')' : ''}: ${s.lan ? 'nội bộ' : s.p2p ? 'P2P' : s.via}`).join('; ') || '—')),
         field('Tên spa', name),
         h('button', { class: 'btn ghost', onclick: () => api('settings.save', { spa_name: name.value.trim() }).then(() => { toast('Đã lưu'); if (S.welcome) S.welcome.spa_name = name.value.trim(); }).catch(() => {}) }, 'Lưu tên spa')));
+    }
+    // Nhiều máy chủ + sao lưu Google Drive
+    const sy = await api('sync.status').catch(() => null);
+    if (sy) {
+      const g = sy.google || {};
+      const ago = ms => { const m = Math.round((Date.now() - ms) / 60000); return m < 60 ? `${m} phút trước` : m < 2880 ? `${Math.round(m / 60)} giờ trước` : `${Math.round(m / 1440)} ngày trước`; };
+      cards.push(h('div', { class: 'card' }, h('h2', {}, 'Máy chủ & sao lưu'),
+        h('dl', { class: 'kv' },
+          h('dt', {}, 'Máy này'), h('dd', {}, `${sy.server_name}${sy.leader ? ' · đang trực' : ''}`),
+          h('dt', {}, 'Máy chủ khác'), h('dd', {}, sy.peers.length ? sy.peers.map(p => h('div', {},
+            `${p.alive ? '🟢' : '⚪'} ${p.name || p.id.slice(0, 8)} — ${p.alive ? 'đồng bộ qua ' + p.via : 'mất liên lạc ' + p.seen_s + ' giây'}`)) : 'Chưa có (1 máy chủ)'),
+          h('dt', {}, 'Google Drive'), h('dd', {}, !g.configured ? 'Chưa cài (chạy google-drive.bat trên máy chủ)'
+            : `${g.enabled ? 'Tự sao lưu mỗi ' + g.every_h + ' giờ' : 'Đang tắt'} · lần cuối: ${g.last ? ago(g.last) : 'chưa có'}${g.error ? ' · ⚠ ' + g.error : ''}`)),
+        h('p', { class: 'small muted' }, 'Thêm máy chủ: cài bản đóng gói trên máy mới bằng dữ liệu sao lưu của spa — các máy tự tìm nhau (cùng mạng nội bộ hoặc qua Internet) và đồng bộ liên tục. Một máy hỏng, máy còn lại vẫn phục vụ đầy đủ.')));
     }
   }
   cards.push(h('div', { class: 'card' }, h('details', {}, h('summary', {}, 'Nhật ký kỹ thuật'), h('pre', { class: 'log' }, S.log.slice(-120).join('\n')))));
