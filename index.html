@@ -88,6 +88,21 @@ nav.tabs button.on{color:var(--brand);background:var(--brand-soft);font-weight:6
 .list{display:grid;gap:0;margin:0 -14px}
 .item{display:grid;grid-template-columns:auto 1fr auto;gap:2px 12px;align-items:center;padding:10px 14px;border-top:1px solid var(--line);cursor:pointer}
 .item:first-child{border-top:0}
+/* Bảng khách hàng: Trạng thái | Tên | Số tiền đặt | Số tiền dư */
+.crow{display:grid;grid-template-columns:52px minmax(0,1.3fr) minmax(0,1fr) 96px 96px;gap:8px;align-items:center;padding:8px 10px;border-top:1px solid var(--line);cursor:pointer}
+.crow:active{background:var(--soft)}
+.crow.chead{cursor:default;border-top:0;font-size:12px;font-weight:600;color:var(--muted);padding-top:4px;padding-bottom:6px}
+.crow.chead+.crow{border-top:1px solid var(--line)}
+.crow .st{display:grid;place-items:center}
+.crow .nm,.crow .nx{min-width:0}
+.crow .t2{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crow .t{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crow .s{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crow .num{text-align:right;font-size:13px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.crow .num.due{color:var(--brand);font-weight:600}
+.crow.chead .num{font-size:12px;white-space:normal;line-height:1.2}
+@media (max-width:420px){.crow{grid-template-columns:30px minmax(0,1.2fr) minmax(0,1fr) 64px 64px;gap:5px;padding:8px 4px}
+  .crow .cav{width:28px;height:28px}.crow .num,.crow .t2{font-size:11px}.crow .t{font-size:13px}.crow .s{font-size:11px}.crow.chead{font-size:10.5px}.crow.chead .num{font-size:10.5px}}
 .item:active{background:var(--soft)}
 .item .t{font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .item .s{font-size:13px;color:var(--muted);grid-column:2;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

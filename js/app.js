@@ -7,7 +7,7 @@
  */
 (() => {
 'use strict';
-const APP_VERSION = 'Spa 0.22';
+const APP_VERSION = 'Spa 0.23';
 const $ = s => document.querySelector(s);
 
 // ---------- tiện ích giao diện ----------
@@ -352,20 +352,31 @@ let custPkg = false;   // nút lọc "Đang liệu trình"
 async function vCustomers(el) {
   const q = h('input', { placeholder: 'Tìm tên hoặc số điện thoại…', value: custQ, type: 'search' });
   const box = h('div', { class: 'list' });
-  const load = () => api('customers.list', { q: custQ, pkg: custPkg ? 1 : 0, limit: custPkg ? 2000 : 200 })
+  const load = () => api('customers.list', { q: custQ, pkg: custPkg ? 1 : 0, limit: 5000 })   // hiện đủ mọi khách (trước đây chỉ 200 người đầu)
     .then(rows => custPkg ? rows.filter(c => c.has_pkg) : rows)   // máy chủ cũ chưa biết lọc thì lọc tại đây
-    .then(rows => box.replaceChildren(...(rows.length ? rows.map(c =>
-    h('div', { class: 'item', onclick: () => customerDetail(c.id) },
-      h('div', { class: 'l' }, personIcon(c.has_app, c.has_pkg)),
-      h('div', { class: 't' }, c.name), h('div', { class: 'r muted' }, c.points ? `${c.points} điểm` : ''),
-      h('div', { class: 's' }, [c.phone, c.code].filter(Boolean).join(' · ') || '—'))) :
+    .then(rows => box.replaceChildren(...(rows.length ? [
+      // Bảng khách: Trạng thái | Tên | Số tiền đặt | Số tiền dư
+      h('div', { class: 'crow chead' }, h('div', {}, 'Trạng thái'), h('div', {}, 'Tên'), h('div', {}, 'Liệu trình'),
+        h('div', { class: 'num' }, 'Số tiền đặt'), h('div', { class: 'num' }, 'Số tiền dư')),
+      ...rows.map(c => h('div', { class: 'crow', onclick: () => customerDetail(c.id) },
+        h('div', { class: 'st' }, personIcon(c.has_app, c.has_pkg)),
+        h('div', { class: 'nm' }, h('div', { class: 't' }, c.name),
+          h('div', { class: 's' }, [c.phone, c.code, c.points ? `${c.points} điểm` : ''].filter(Boolean).join(' · ') || '—')),
+        // Liệu trình sắp làm gần nhất = lịch hẹn sắp tới: tên dịch vụ + ngày giờ
+        h('div', { class: 'nx' }, c.next_at ? [h('div', { class: 't2' }, c.next_svc || 'Lịch hẹn'),
+          h('div', { class: 's' }, `${pad(new Date(c.next_at).getDate())}/${pad(new Date(c.next_at).getMonth() + 1)} ${hm(c.next_at)}`)] : h('span', { class: 'muted' }, '—')),
+        h('div', { class: 'num' }, c.paid ? vnd(c.paid) : '—'),
+        h('div', { class: 'num' + (c.bal > 0 ? ' due' : '') }, c.bal ? vnd(c.bal) : '—')))] :
       [h('div', { class: 'empty' }, custQ ? 'Không tìm thấy' : custPkg ? 'Không có khách đang liệu trình' : 'Chưa có khách')])));
+  const vnd = n => Math.round(n).toLocaleString('vi-VN');
   let t;
   q.addEventListener('input', () => { custQ = q.value.trim(); clearTimeout(t); t = setTimeout(load, 250); });
-  // 2 nút liền khối: [Đang liệu trình] (bật/tắt lọc) | [+ Thêm khách]
+  // 2 nút liền khối: [Đang liệu trình (số khách)] (bật/tắt lọc) | [+ Thêm khách]
+  const cnt = h('span', { class: 'cnt' });
+  api('customers.pkg_count', {}).then(n => { cnt.textContent = ` (${n})`; }, () => {});   // máy chủ cũ không có thì thôi
   const fbtn = h('button', { class: custPkg ? 'on' : '', 'aria-pressed': String(custPkg),
     onclick: () => { custPkg = !custPkg; fbtn.className = custPkg ? 'on' : ''; fbtn.setAttribute('aria-pressed', String(custPkg)); load(); } },
-    'Đang liệu trình');
+    'Đang liệu trình', cnt);
   el.replaceChildren(h('div', { class: 'card' }, q,
     h('div', { class: 'seg' }, fbtn,
       ['owner', 'reception'].includes(myRole()) && h('button', { class: 'add', onclick: () => customerEdit({}) }, '+ Thêm khách')), box));
