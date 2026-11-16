@@ -7,7 +7,7 @@
  */
 (() => {
 'use strict';
-const APP_VERSION = 'Spa 0.4';
+const APP_VERSION = 'Spa 0.5';
 const $ = s => document.querySelector(s);
 
 // ---------- tiện ích giao diện ----------
@@ -32,9 +32,9 @@ const dayLabel = ms => { const d = new Date(ms); return `${WD[d.getDay()]} ${pad
 const dayStart = ms => { const d = new Date(ms); d.setHours(0, 0, 0, 0); return d.getTime(); };
 const dateVal = ms => { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 const fromInputs = (date, time) => new Date(`${date}T${time || '00:00'}`).getTime();
-const ROLE = { chairman: 'Chủ tịch HĐQT', ceo: 'Tổng giám đốc', owner: 'Trợ lý TGĐ', reception: 'Lễ tân', technician: 'Kỹ thuật viên', customer: 'Khách hàng' };
+const ROLE = { sysadmin: 'Quản trị hệ thống', chairman: 'Chủ tịch HĐQT', ceo: 'Tổng giám đốc', owner: 'Trợ lý TGĐ', reception: 'Lễ tân', technician: 'Kỹ thuật viên', customer: 'Khách hàng' };
 // 3 cấp quản trị đều toàn quyền (máy chủ kiểm tra); cấp thấp không cấp/sửa được tài khoản cấp cao hơn
-const RANK = { chairman: 3, ceo: 2, owner: 1 };
+const RANK = { sysadmin: 4, chairman: 3, ceo: 2, owner: 1 };   // sysadmin: chỉ cấp trên máy chủ, ẩn khỏi danh sách
 const myRole = () => (S.me && RANK[S.me.role]) ? 'owner' : (S.me && S.me.role);
 const STATUS = { requested: 'Chờ xác nhận', booked: 'Đã đặt', arrived: 'Đã đến', in_service: 'Đang làm', done: 'Xong', cancelled: 'Đã hủy', no_show: 'Không đến' };
 const METHOD = { cash: 'Tiền mặt', transfer: 'Chuyển khoản', card: 'Thẻ' };
@@ -568,7 +568,7 @@ function staffEdit(u) {
   const isNew = !u.id;
   let cust = u.customer_id ? { id: u.customer_id } : null;
   const f = { username: h('input', { value: u.username || '', autocapitalize: 'none' }), display_name: h('input', { value: u.display_name || '' }),
-    role: h('select', {}, Object.entries(ROLE).filter(([v]) => (RANK[v] || 0) <= (RANK[S.me.role] || 0) || v === u.role)
+    role: h('select', {}, Object.entries(ROLE).filter(([v]) => v !== 'sysadmin' && ((RANK[v] || 0) <= (RANK[S.me.role] || 0) || v === u.role))
       .map(([v, l]) => h('option', { value: v, selected: v === (u.role || 'technician') }, l))),
     phone: h('input', { type: 'tel', value: u.phone || '' }), password: h('input', { type: 'password', autocomplete: 'new-password', placeholder: isNew ? '' : 'Để trống nếu không đổi' }),
     staff_code: h('input', { value: u.staff_code || '', placeholder: 'VD: NB015' }), title: h('input', { value: u.title || '', placeholder: 'Bác sĩ, KTV, Lễ tân…' }),
