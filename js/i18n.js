@@ -52,7 +52,8 @@ const EN = {
   'Gửi yêu cầu đặt lịch': 'Send booking request', 'Đã gửi. Spa sẽ xác nhận sớm.': 'Sent. The spa will confirm soon.',
   // khách
   'Tìm tên hoặc số điện thoại…': 'Search name or phone…', 'Lưu khách': 'Save customer', 'Khách mới': 'New customer',
-  'Tên khách': 'Customer name', 'Số điện thoại': 'Phone number', '+ Thêm khách': '+ Add customer',
+  'Tên khách': 'Customer name', 'Số điện thoại': 'Phone number', '+ Thêm khách': '+ Add customer', 'Đang liệu trình': 'In treatment',
+  'Không có khách đang liệu trình': 'No customers in treatment',
   'In thẻ thành viên': 'Print member card', 'Phân loại': 'Category', 'Đến lần đầu': 'First visit',
   'Điểm tích lũy': 'Loyalty points', 'Đã chi': 'Spent', 'Tổng mua (hệ thống cũ)': 'Total purchases (old system)',
   'Gói & số dư': 'Packages & balance', '+ Mở gói': '+ New package', 'Ghi chú liệu trình': 'Treatment notes',

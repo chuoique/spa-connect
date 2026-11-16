@@ -7,7 +7,7 @@
  */
 (() => {
 'use strict';
-const APP_VERSION = 'Spa 0.21';
+const APP_VERSION = 'Spa 0.22';
 const $ = s => document.querySelector(s);
 
 // ---------- tiện ích giao diện ----------
@@ -348,18 +348,27 @@ function personIcon(app, pkg) {
     '<path d="M3.5 21c0-4.7 3.8-7.6 8.5-7.6s8.5 2.9 8.5 7.6z" fill="currentColor"/></svg>';
   return s;
 }
+let custPkg = false;   // nút lọc "Đang liệu trình"
 async function vCustomers(el) {
   const q = h('input', { placeholder: 'Tìm tên hoặc số điện thoại…', value: custQ, type: 'search' });
   const box = h('div', { class: 'list' });
-  const load = () => api('customers.list', { q: custQ, limit: 200 }).then(rows => box.replaceChildren(...(rows.length ? rows.map(c =>
+  const load = () => api('customers.list', { q: custQ, pkg: custPkg ? 1 : 0, limit: custPkg ? 2000 : 200 })
+    .then(rows => custPkg ? rows.filter(c => c.has_pkg) : rows)   // máy chủ cũ chưa biết lọc thì lọc tại đây
+    .then(rows => box.replaceChildren(...(rows.length ? rows.map(c =>
     h('div', { class: 'item', onclick: () => customerDetail(c.id) },
       h('div', { class: 'l' }, personIcon(c.has_app, c.has_pkg)),
       h('div', { class: 't' }, c.name), h('div', { class: 'r muted' }, c.points ? `${c.points} điểm` : ''),
-      h('div', { class: 's' }, [c.phone, c.code].filter(Boolean).join(' · ') || '—'))) : [h('div', { class: 'empty' }, custQ ? 'Không tìm thấy' : 'Chưa có khách')])));
+      h('div', { class: 's' }, [c.phone, c.code].filter(Boolean).join(' · ') || '—'))) :
+      [h('div', { class: 'empty' }, custQ ? 'Không tìm thấy' : custPkg ? 'Không có khách đang liệu trình' : 'Chưa có khách')])));
   let t;
   q.addEventListener('input', () => { custQ = q.value.trim(); clearTimeout(t); t = setTimeout(load, 250); });
+  // 2 nút liền khối: [Đang liệu trình] (bật/tắt lọc) | [+ Thêm khách]
+  const fbtn = h('button', { class: custPkg ? 'on' : '', 'aria-pressed': String(custPkg),
+    onclick: () => { custPkg = !custPkg; fbtn.className = custPkg ? 'on' : ''; fbtn.setAttribute('aria-pressed', String(custPkg)); load(); } },
+    'Đang liệu trình');
   el.replaceChildren(h('div', { class: 'card' }, q,
-    ['owner', 'reception'].includes(myRole()) && h('button', { class: 'btn', onclick: () => customerEdit({}) }, '+ Thêm khách'), box));
+    h('div', { class: 'seg' }, fbtn,
+      ['owner', 'reception'].includes(myRole()) && h('button', { class: 'add', onclick: () => customerEdit({}) }, '+ Thêm khách')), box));
   await load();
 }
 async function customerDetail(id) {
