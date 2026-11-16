@@ -7,7 +7,7 @@
  */
 (() => {
 'use strict';
-const APP_VERSION = 'Spa 0.6';
+const APP_VERSION = 'Spa 0.7';
 const $ = s => document.querySelector(s);
 
 // ---------- tiện ích giao diện ----------
@@ -481,7 +481,11 @@ async function vInvoices(el) {
 async function invoiceDetail(id) {
   const i = await api('invoices.get', { id });
   let close;
+  const biz = S.biz || (S.biz = await api('spa.info').catch(() => null)) || {};
   close = sheet(`Hóa đơn ${i.number}`, h('div', { style: 'display:grid;gap:10px' },
+    biz.biz_name && h('div', { class: 'bizhead' }, h('b', {}, biz.biz_name),
+      h('div', { class: 'small muted' }, [biz.biz_tax && `MST: ${biz.biz_tax}`, biz.biz_phone && `SĐT: ${biz.biz_phone}`].filter(Boolean).join(' · ')),
+      biz.biz_addr && h('div', { class: 'small muted' }, biz.biz_addr)),
     h('dl', { class: 'kv' }, h('dt', {}, 'Khách'), h('dd', {}, i.customer_name || 'Khách lẻ'), h('dt', {}, 'Thời gian'), h('dd', {}, `${dmy(i.created_at)} ${hm(i.created_at)}`),
       i.kind && h('dt', {}, 'Loại'), i.kind && h('dd', {}, i.kind),
       h('dt', {}, 'Thanh toán'), h('dd', {}, (i.paid_cash || i.paid_transfer || i.paid_card)
@@ -979,6 +983,22 @@ async function vSystem(el) {
         h('button', { class: 'btn ghost', onclick: () => api('auth.logout').then(() => { S.me = null; screenLogin(); }).catch(() => {}) }, 'Đăng xuất'),
         h('button', { class: 'btn bad', onclick: unpair }, 'Gỡ ghép máy này'))),
   ];
+  // Doanh nghiệp: ảnh biển hiệu + thông tin pháp lý (ai cũng xem được, quản trị sửa được)
+  const biz = S.biz = await api('spa.info').catch(() => S.biz || null);
+  if (biz) {
+    const f = { biz_name: h('input', { value: biz.biz_name }), biz_tax: h('input', { value: biz.biz_tax }),
+                biz_addr: h('input', { value: biz.biz_addr }), biz_phone: h('input', { value: biz.biz_phone, type: 'tel' }) };
+    cards.splice(0, 0, h('div', { class: 'card' }, h('h2', {}, 'Doanh nghiệp'),
+      h('img', { src: 'bien-hieu.webp', alt: 'Biển hiệu ' + (biz.biz_name || ''), class: 'signboard' }),
+      owner ? h('div', { style: 'display:grid;gap:8px' }, field('Tên doanh nghiệp', f.biz_name), field('Mã số thuế', f.biz_tax),
+          field('Địa chỉ', f.biz_addr), field('Điện thoại', f.biz_phone),
+          h('button', { class: 'btn ghost', onclick: () => {
+            const v = Object.fromEntries(Object.entries(f).map(([k, el]) => [k, el.value.trim()]));
+            api('settings.save', v).then(() => { S.biz = { ...S.biz, ...v }; toast('Đã lưu thông tin doanh nghiệp'); }).catch(() => {});
+          } }, 'Lưu thông tin doanh nghiệp'))
+        : h('dl', { class: 'kv' }, h('dt', {}, 'Tên'), h('dd', {}, biz.biz_name), h('dt', {}, 'MST'), h('dd', {}, biz.biz_tax),
+          h('dt', {}, 'Địa chỉ'), h('dd', {}, biz.biz_addr), h('dt', {}, 'Điện thoại'), h('dd', {}, biz.biz_phone))));
+  }
   if (owner) {
     const st = await api('system.status').catch(() => null);
     if (st) {
