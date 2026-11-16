@@ -146,7 +146,7 @@ ol.steps{margin:0;padding-left:20px;font-size:14px;display:grid;gap:4px}
 <script>
 (() => {
 const V4ONLY = /[?&#]v4\b/.test(location.search + location.hash);
-const VERSION = 'h6' + (location.protocol === 'http:' ? ' http' : '') + (V4ONLY ? ' (P2P CHỈ IPv4)' : '') + (location.search ? ' ' + location.search : '');
+const VERSION = 'h7' + (location.protocol === 'http:' ? ' http' : '') + (V4ONLY ? ' (P2P CHỈ IPv4)' : '') + (location.search ? ' ' + location.search : '');
 const SALT = 'spa-p2p-v1', ITERS = 100000;
 const ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }];
 const NTFY = 'https://ntfy.sh/';
@@ -488,8 +488,13 @@ function onChannelUp(b, tc) {
   sendVia(b, { type: 'hello' });
   render();
 }
+// Mạng vừa thay đổi (bật/tắt Wi-Fi, mất Internet…) -> dò nội bộ ngay ở vòng lặp kế, không chờ 15 s
+function netChanged(why) {
+  if (!running || lanOk() || lan.cut || lan.probing) return;
+  if (performance.now() - lan.lastProbe > 1500) { log(`Mạng thay đổi (${why}) → dò nội bộ ngay`); lan.lastProbe = 0; }
+}
 function onChannelDown(b) {
-  if (b.up) log(`[${b.name}] mất kết nối`);
+  if (b.up) { log(`[${b.name}] mất kết nối`); netChanged(`${b.name} rớt`); }
   b.up = false; b.welcomed = false;
   b.state = b === killed ? 'đã tắt thử' : 'mất kết nối, đang thử lại…';
   if (b === active) failover('kênh đang dùng mất kết nối'); else render();
@@ -647,6 +652,7 @@ function failP2P(why, retry = true) {
   p2p.retryAt = performance.now() + (wasOpen ? 3000 : p2p.delay);
   p2p.note = retry ? `${why} · thử lại sau ${Math.round((p2p.retryAt - performance.now()) / 1000)} s` : why;
   log(`P2P ${wasOpen ? 'đóng' : 'không được'}: ${why}`);
+  if (wasOpen && retry) netChanged('P2P rớt');
   sendVia(active, { type: 'p2p_off', why });
   render();
 }
@@ -716,12 +722,12 @@ function loop() {
   if (!running || document.hidden) return;
   const now = performance.now();
   for (const k in sent) if (now - sent[k].t > 15000) delete sent[k];
-  // 1. Nội bộ: ping mỗi 2 s; không có thì dò lại địa chỉ đã biết mỗi 15 s, quét cả dải mỗi 3 phút
+  // 1. Nội bộ: ping mỗi 2 s; không có thì dò lại địa chỉ đã biết mỗi 6 s (và ngay khi mạng đổi), quét cả dải mỗi 3 phút
   if (lanOk()) {
     if (now - lan.lastPing >= 2000) { lan.lastPing = now; ping('lan'); }
     if (now - lan.lastPong > DEAD_MS) { log('Nội bộ: PC không trả lời'); try { lan.ws.close(); } catch {} }
   } else if (!lan.cut && !lan.up) {
-    if (now - lan.lastProbe > 15000) probeKnown();
+    if (now - lan.lastProbe > 6000) probeKnown();
     if (!HTTP_PAGE && !lan.probing && now - lan.lastScan > 180000 && now - tStart > 4000) scanSubnets();
   }
   // 2. P2P
@@ -833,6 +839,8 @@ document.addEventListener('visibilitychange', () => {
   else if (p2p.state === 'failed') p2p.retryAt = now + 1000;
 });
 window.addEventListener('pagehide', () => send({ type: 'bye' }));
+window.addEventListener('online', () => netChanged('có mạng trở lại'));
+window.addEventListener('offline', () => netChanged('mất mạng'));
 window.addEventListener('error', e => log('Lỗi trang: ' + e.message));
 
 showLanInfo();
