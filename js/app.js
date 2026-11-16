@@ -7,7 +7,7 @@
  */
 (() => {
 'use strict';
-const APP_VERSION = 'Spa 0.8';
+const APP_VERSION = 'Spa 0.9';
 const $ = s => document.querySelector(s);
 
 // ---------- tiện ích giao diện ----------
@@ -958,6 +958,24 @@ function diagPanel() {
   const t = setInterval(() => { if (!box.isConnected) clearInterval(t); else draw(); }, 1000);
   return box;
 }
+// Thùng rác: chỉ quản trị hệ thống. Dữ liệu xóa chỉ được đánh dấu (kể cả trên Google Drive), khôi phục được.
+const TRASH_T = { customers: 'Khách', appointments: 'Lịch hẹn', invoices: 'Hóa đơn', services: 'Dịch vụ', products: 'Sản phẩm',
+  users: 'Tài khoản', packages: 'Gói', notes: 'Ghi chú', cash_entries: 'Thu chi', bonuses: 'Thưởng', bonus_rates: 'Mức thưởng',
+  stock_moves: 'Phiếu kho', package_moves: 'Cộng/trừ gói' };
+async function trashSheet() {
+  const box = h('div', { class: 'list' }, h('div', { class: 'empty' }, 'Đang tải…'));
+  const load = () => api('trash.list', {}).then(rows => box.replaceChildren(...(rows.length ? rows.map(x => h('div', { class: 'item' },
+    h('div', { class: 'l' }, '🗑'), h('div', { class: 't' }, x.label || x.id),
+    h('div', { class: 'r' }, h('button', { class: 'btn ghost small', onclick: e => {
+      e.stopPropagation();
+      api('trash.restore', { table: x.tbl, id: x.id }).then(() => { toast('Đã khôi phục'); load(); }).catch(() => {});
+    } }, 'Khôi phục')),
+    h('div', { class: 's' }, `${TRASH_T[x.tbl] || x.tbl} · xóa ${dmy(x.updated_at)} ${hm(x.updated_at)}${x.by_name ? ' · ' + x.by_name : ''}`)))
+    : [h('div', { class: 'empty' }, 'Thùng rác trống')]))).catch(() => {});
+  sheet('Thùng rác', h('div', { style: 'display:grid;gap:10px' },
+    h('p', { class: 'small muted' }, 'Dữ liệu bị xóa không mất: chỉ đánh dấu xóa trên mọi máy chủ và Google Drive. Khôi phục sẽ đồng bộ tới mọi máy.'), box));
+  load();
+}
 async function vSystem(el) {
   const owner = myRole() === 'owner';
   const id = Conn.identity() || {};
@@ -1024,8 +1042,12 @@ async function vSystem(el) {
           h('dt', {}, 'Máy chủ khác'), h('dd', {}, sy.peers.length ? sy.peers.map(p => h('div', {},
             `${p.alive ? '🟢' : '⚪'} ${p.name || p.id.slice(0, 8)} — ${p.alive ? 'đồng bộ qua ' + p.via : 'mất liên lạc ' + p.seen_s + ' giây'}`)) : 'Chưa có (1 máy chủ)'),
           h('dt', {}, 'Google Drive'), h('dd', {}, !g.configured ? 'Chưa cài (chạy google-drive.bat trên máy chủ)'
-            : `${g.enabled ? 'Tự sao lưu mỗi ' + g.every_h + ' giờ' : 'Đang tắt'} · lần cuối: ${g.last ? ago(g.last) : 'chưa có'}${g.error ? ' · ⚠ ' + g.error : ''}`)),
-        h('p', { class: 'small muted' }, 'Thêm máy chủ: cài bản đóng gói trên máy mới bằng dữ liệu sao lưu của spa — các máy tự tìm nhau (cùng mạng nội bộ hoặc qua Internet) và đồng bộ liên tục. Một máy hỏng, máy còn lại vẫn phục vụ đầy đủ.')));
+            : !g.enabled ? 'Đang tắt' : [
+              h('div', {}, `Nhật ký: ${g.journal_up ? 'đưa lên ' + ago(g.journal_up) : 'chưa đưa lên'}${g.pending ? ` · còn ${g.pending} thay đổi chờ` : ' · đã đủ'}`),
+              h('div', {}, `Ảnh chụp toàn bộ: mỗi ${g.every_h} giờ · lần cuối ${g.last ? ago(g.last) : 'chưa có'}`),
+              g.error && h('div', { style: 'color:var(--bad)' }, '⚠ ' + g.error)])),
+        h('p', { class: 'small muted' }, 'Thêm máy chủ: cài bản đóng gói trên máy mới bằng dữ liệu sao lưu của spa — các máy tự tìm nhau (cùng mạng nội bộ hoặc qua Internet) và đồng bộ liên tục. Một máy hỏng, máy còn lại vẫn phục vụ đầy đủ.'),
+        S.me.role === 'sysadmin' && h('button', { class: 'btn ghost', onclick: trashSheet }, '🗑 Thùng rác (dữ liệu đã xóa)')));
     }
   }
   cards.push(h('div', { class: 'card' }, h('details', {}, h('summary', {}, 'Nhật ký kỹ thuật'), h('pre', { class: 'log' }, S.log.slice(-120).join('\n')))));
