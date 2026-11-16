@@ -7,7 +7,7 @@
  */
 (() => {
 'use strict';
-const APP_VERSION = 'Spa 0.11';
+const APP_VERSION = 'Spa 0.12';
 const $ = s => document.querySelector(s);
 
 // ---------- tiện ích giao diện ----------
@@ -981,6 +981,9 @@ async function vSystem(el) {
   const id = Conn.identity() || {};
   const lanIn = h('input', { placeholder: '192.168.1.125', inputmode: 'decimal' });
   const knownLan = (Conn.diag().lanAddrs || []);
+  const ua = navigator.userAgent;
+  const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isAndroid = /Android/.test(ua), isWin = /Windows/.test(ua), isMac = /Macintosh/.test(ua) && !isIOS;
   // Tải chứng chỉ: mỗi địa chỉ 1 dòng + trạng thái "máy này đã tin chưa" (thử mở https của máy chủ)
   const certRows = knownLan.map(ip => {
     const st = h('span', { class: 'small muted' }, ' …');
@@ -991,16 +994,21 @@ async function vSystem(el) {
       ws.onopen = () => { clearTimeout(t); done(true); };
       ws.onerror = () => { clearTimeout(t); done(false); };
     } catch (e) { st.textContent = ' ⚠ không kiểm tra được'; }
-    return h('div', {}, h('a', { href: `http://${ip}:${Conn.LAN_HTTP}/ca.crt`, target: '_blank', rel: 'noopener', download: 'spa-noi-bo.crt' },
-      `Tải chứng chỉ từ ${ip}`), st);
+    return h('div', { class: 'small' }, `Máy chủ ${ip}:`, st,
+      isIOS ? [' · ', h('a', { href: `http://${ip}:${Conn.LAN_HTTP}/ca.crt`, target: '_blank', rel: 'noopener' }, 'tải qua Safari')] : null);
   });
-  const ua = navigator.userAgent;
-  const isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const isAndroid = /Android/.test(ua), isWin = /Windows/.test(ua), isMac = /Macintosh/.test(ua) && !isIOS;
-  const certSteps = isIOS ? 'iPhone/iPad: bấm link (Safari) → Cho phép → Cài đặt → "Đã tải về hồ sơ" → Cài đặt → rồi Cài đặt chung → Giới thiệu → Cài đặt tin cậy chứng nhận → bật "Spa - chung chi goc…".'
-    : isAndroid ? 'Android: bấm link tải file → Cài đặt → Bảo mật → Mã hóa & thông tin xác thực → Cài đặt chứng chỉ → Chứng chỉ CA → chọn file spa-noi-bo.crt (trong Tải xuống) → Vẫn cài đặt.'
-    : isWin ? 'Windows: bấm link (file spa-noi-bo.crt vào thư mục Tải xuống) → mở file → "Install Certificate" (Cài đặt chứng chỉ) → Current User → "Place all certificates in the following store" → Browse → chọn "Trusted Root Certification Authorities" → OK → Next → Finish → Yes. Rồi đóng hẳn app / trình duyệt và mở lại.'
-    : isMac ? 'Mac: bấm link tải file → mở file (Keychain Access, chọn "login") → bấm đúp "Spa - chung chi goc" → Trust → "When using this certificate": Always Trust → đóng, nhập mật khẩu máy. Rồi mở lại trình duyệt.'
+  // Tải chứng chỉ ngay trong app (xin máy chủ qua kết nối mã hóa, tạo file tại chỗ): Chrome không chặn như tải qua http
+  const certBtn = h('button', { class: 'btn ghost small', onclick: () => busy(certBtn, api('spa.ca', {}).then(r => {
+    const url = URL.createObjectURL(new Blob([r.pem], { type: 'application/x-x509-ca-cert' }));
+    const a = h('a', { href: url, download: 'spa-noi-bo.crt' });
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    toast('Đã tải spa-noi-bo.crt (thư mục Tải xuống) - mở file để cài');
+  }).catch(() => {})) }, '⬇ Tải chứng chỉ của spa');
+  const certSteps = isIOS ? 'iPhone/iPad: bấm "tải qua Safari" → Cho phép → Cài đặt → "Đã tải về hồ sơ" → Cài đặt → rồi Cài đặt chung → Giới thiệu → Cài đặt tin cậy chứng nhận → bật "Spa - chung chi goc…".'
+    : isAndroid ? 'Android: bấm "Tải chứng chỉ của spa" → Cài đặt → Bảo mật → Mã hóa & thông tin xác thực → Cài đặt chứng chỉ → Chứng chỉ CA → chọn file spa-noi-bo.crt (trong Tải xuống) → Vẫn cài đặt.'
+    : isWin ? 'Windows: bấm "Tải chứng chỉ của spa" (file spa-noi-bo.crt vào thư mục Tải xuống, hoặc trên chính máy chủ mở data\\certs\\ca.crt) → mở file → "Install Certificate" (Cài đặt chứng chỉ) → Current User → "Place all certificates in the following store" → Browse → chọn "Trusted Root Certification Authorities" → OK → Next → Finish → Yes. Rồi đóng hẳn app / trình duyệt và mở lại.'
+    : isMac ? 'Mac: bấm "Tải chứng chỉ của spa" → mở file (Keychain Access, chọn "login") → bấm đúp "Spa - chung chi goc" → Trust → "When using this certificate": Always Trust → đóng, nhập mật khẩu máy. Rồi mở lại trình duyệt.'
     : 'Tải file chứng chỉ rồi cài vào mục "chứng chỉ gốc tin cậy" của máy.';
   const cards = [
     h('div', { class: 'card' }, h('h2', {}, 'Kết nối'), diagPanel(),
@@ -1013,7 +1021,8 @@ async function vSystem(el) {
       h('div', { class: 'row' }, h('div', { class: 'grow' }, lanIn), h('button', { class: 'btn ghost small', onclick: () => { if (Conn.addLan(lanIn.value.trim())) { toast('Đã thêm'); go('system'); } else toast('Địa chỉ nội bộ dạng 192.168.x.x', true); } }, 'Thêm'),
         h('button', { class: 'btn ghost small', onclick: () => { Conn.findLan(); toast('Đang tìm…'); } }, 'Tìm ngay')),
       h('p', { class: 'small muted' }, 'Lần đầu dùng mạng nội bộ, mỗi máy cần cài chứng chỉ của spa một lần (ở spa, cùng mạng với máy chủ). Chưa cài thì app vẫn chạy qua Internet.'),
-      h('div', { style: 'display:grid;gap:6px' }, certRows.length ? certRows : h('div', { class: 'small' }, 'http://IP-máy-chủ:8080/ca.crt')),
+      !isIOS && h('div', { class: 'row' }, certBtn),
+      h('div', { style: 'display:grid;gap:6px' }, certRows.length ? certRows : h('div', { class: 'small' }, 'Chưa biết địa chỉ máy chủ nội bộ.')),
       h('p', { class: 'small muted' }, certSteps)),
     h('div', { class: 'card' }, h('h2', {}, 'Tài khoản'),
       h('dl', { class: 'kv' }, h('dt', {}, 'Người dùng'), h('dd', {}, `${S.me.display_name} (${S.me.username})`), h('dt', {}, 'Vai trò'), h('dd', {}, ROLE[S.me.role]),
