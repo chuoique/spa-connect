@@ -7,7 +7,7 @@
  */
 (() => {
 'use strict';
-const APP_VERSION = 'Spa 0.20';
+const APP_VERSION = 'Spa 0.21';
 const $ = s => document.querySelector(s);
 
 // ---------- tiện ích giao diện ----------
