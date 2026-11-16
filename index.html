@@ -124,7 +124,7 @@ ol.steps{margin:0;padding-left:20px;font-size:14px;display:grid;gap:4px}
         </div>
         <p class="hint">Lần đầu dùng mạng nội bộ, mỗi máy cần cài <b>chứng chỉ của spa</b> một lần:</p>
         <ol class="steps">
-          <li>Ở spa (cùng Wi-Fi với PC), mở bằng Safari: <a id="caLink" href="#">http://IP-PC:8080/ca.crt</a></li>
+          <li>Ở spa (cùng Wi-Fi với PC), mở bằng Safari: <span id="caLink">http://IP-PC:8080/ca.crt</span></li>
           <li>Cài đặt → Đã tải về hồ sơ → Cài đặt.</li>
           <li>Cài đặt → Cài đặt chung → Giới thiệu → Cài đặt tin cậy chứng nhận → bật “Spa - chung chi goc…”.</li>
         </ol>
@@ -389,9 +389,14 @@ async function scanSubnets() {
 function showLanInfo() {
   const list = lanAddrs();
   $('lanKnown').textContent = list.length ? `Địa chỉ đã biết: ${list.join(', ')}` : 'Chưa biết địa chỉ máy chủ nội bộ. Kết nối qua Internet một lần là app tự nhớ, hoặc nhập tay bên dưới.';
-  const ip = list[0] || 'IP-PC';
-  $('caLink').textContent = `http://${ip}:${LAN_HTTP}/ca.crt`;
-  $('caLink').href = list[0] ? `http://${ip}:${LAN_HTTP}/ca.crt` : '#';
+  // mỗi địa chỉ một liên kết (PC có thể có nhiều card mạng; dùng cái cùng mạng Wi-Fi với điện thoại)
+  $('caLink').textContent = list.length ? '' : `http://IP-PC:${LAN_HTTP}/ca.crt`;
+  list.forEach((ip, i) => {
+    if (i) $('caLink').append(' hoặc ');
+    const a = document.createElement('a');
+    a.href = a.textContent = `http://${ip}:${LAN_HTTP}/ca.crt`;
+    $('caLink').append(a);
+  });
 }
 
 // ---------- hiển thị ----------
