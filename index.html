@@ -142,10 +142,11 @@ ol.steps{margin:0;padding-left:20px;font-size:14px;display:grid;gap:4px}
 <!-- Thư viện chép sẵn trong kho: không phụ thuộc CDN. forge chỉ cần khi trang chạy qua http. -->
 <script src="lib/forge.min.js"></script>
 <script src="lib/mqtt.min.js"></script>
+<script src="lib/nostr.bundle.js"></script>
 <script>
 (() => {
 const V4ONLY = /[?&#]v4\b/.test(location.search + location.hash);
-const VERSION = 'h5' + (location.protocol === 'http:' ? ' http' : '') + (V4ONLY ? ' (P2P CHỈ IPv4)' : '') + (location.search ? ' ' + location.search : '');
+const VERSION = 'h6' + (location.protocol === 'http:' ? ' http' : '') + (V4ONLY ? ' (P2P CHỈ IPv4)' : '') + (location.search ? ' ' + location.search : '');
 const SALT = 'spa-p2p-v1', ITERS = 100000;
 const ICE = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }];
 const NTFY = 'https://ntfy.sh/';
@@ -155,8 +156,12 @@ const ALL_CHANNELS = [
   { name: 'hivemq',    url: 'wss://broker.hivemq.com:8884/mqtt' },
   { name: 'mosquitto', url: 'wss://test.mosquitto.org:8081/mqtt' },
   { name: 'eclipse',   url: 'wss://mqtt.eclipseprojects.io:443/mqtt' },
+  { name: 'nostr.mom', nostr: 'wss://nostr.mom' },
+  { name: 'nos.lol',   nostr: 'wss://nos.lol' },
+  { name: 'primal',    nostr: 'wss://relay.primal.net' },
   { name: 'ntfy',      ntfy: true },
 ];
+const NOSTR_KIND = 25051;      // loại "tạm thời": relay chuyển tiếp nhưng không lưu lại
 // Thử: ?kenh=ntfy hoặc ?kenh=emqx,ntfy -> chỉ dùng các kênh đó; ?noibo=0 -> bỏ qua mạng nội bộ
 const ONLY = (new URLSearchParams(location.search).get('kenh') || '').split(',').filter(Boolean);
 const NO_LAN = new URLSearchParams(location.search).get('noibo') === '0';
@@ -453,10 +458,17 @@ function setActive(b, why) {
   log(old ? `Kênh báo tin: ${old.name} → ${b.name} (${why})` : `Kênh báo tin dùng ${b.name} (${why})`);
   render();
 }
-const score = b => (median(b.rtts) ?? 5000) + (b.ntfy ? 100000 : 0);   // ntfy chậm và giới hạn tin: dùng sau cùng
+// Thứ tự ưu tiên: MQTT (nhanh) > Nostr > ntfy (chậm, giới hạn số tin)
+const score = b => (median(b.rtts) ?? 5000) + (b.ntfy ? 100000 : b.nostr ? 50000 : 0);
+// Nhịp thăm dò / ping / coi là hỏng cho từng loại kênh (khi là đường chính và khi chỉ dự phòng)
+function cfg(b) {
+  if (b.ntfy) return { probe: NTFY_PROBE_MS, mainPing: NTFY_PING_MS, mainDead: NTFY_DEAD_MS, bakPing: NTFY_PING_MS, bakDead: NTFY_DEAD_MS };
+  if (b.nostr) return { probe: 30000, mainPing: 3000, mainDead: 10000, bakPing: 30000, bakDead: 70000 };
+  return { probe: PROBE_MS, mainPing: 2000, mainDead: DEAD_MS, bakPing: PROBE_MS, bakDead: PROBE_MS * 2 + 2000 };
+}
 function pickBest(except) {
   const now = performance.now();
-  const fresh = b => now - b.lastPong < (b.ntfy ? NTFY_PROBE_MS + 60000 : PROBE_MS * 2 + 2000);
+  const fresh = b => now - b.lastPong < cfg(b).probe * 2 + 5000;
   const ok = brokers.filter(b => b !== except && b.up && b.welcomed && fresh(b)).sort((x, y) => score(x) - score(y));
   return ok[0] || brokers.filter(b => b !== except && b.up && b.welcomed).sort((x, y) => score(x) - score(y))[0] || null;
 }
@@ -521,13 +533,52 @@ function makeNtfy(def) {
   return b;
 }
 
+// ---------- kênh báo tin: Nostr (mạng relay độc lập; mỗi tin ký Schnorr bằng khóa tạm của trang) ----------
+function makeNostr(def) {
+  const b = newChannel(def);
+  const tc = performance.now();
+  const sk = NostrTools.generateSecretKey();          // khóa tạm, chỉ để ký tin, không phải danh tính
+  const tagIn = `spa-${hex}-p`, tagOut = `spa-${hex}-d`;
+  let ws = null, stopped = false, retry = 2000;
+  function openWS() {
+    try { ws = new WebSocket(def.nostr); } catch { return; }
+    ws.onopen = () => {
+      retry = 2000;
+      ws.send(JSON.stringify(['REQ', 'spa', { kinds: [NOSTR_KIND], '#t': [tagIn], since: Math.floor(Date.now() / 1000) - 10 }]));
+      onChannelUp(b, tc);
+    };
+    ws.onmessage = async e => {
+      let a; try { a = JSON.parse(e.data); } catch { return; }
+      if (a[0] === 'EVENT' && a[2] && a[2].content) { const m = await open(a[2].content); if (m) onMsg(m, b); }
+      else if (a[0] === 'OK' && a[2] === false) log(`[${b.name}] relay từ chối tin: ${a[3]}`);
+      else if (a[0] === 'NOTICE' || a[0] === 'CLOSED') log(`[${b.name}] ${a[0]}: ${a.slice(1).join(' ')}`);
+    };
+    ws.onclose = () => {
+      if (stopped) return;
+      if (b.up) onChannelDown(b); else { b.failed = true; b.state = 'không nối được, đang thử lại…'; render(); }
+      setTimeout(openWS, retry); retry = Math.min(retry * 2, 60000);
+    };
+  }
+  b.client = {
+    publish: (topic, payload) => {
+      if (!ws || ws.readyState !== 1) return;
+      const ev = NostrTools.finalizeEvent({ kind: NOSTR_KIND, created_at: Math.floor(Date.now() / 1000), tags: [['t', tagOut]], content: payload }, sk);
+      ws.send(JSON.stringify(['EVENT', ev]));
+    },
+    end: () => { stopped = true; try { ws.close(); } catch {} },
+  };
+  openWS();
+  return b;
+}
+const makeChannel = d => d.ntfy ? makeNtfy(d) : d.nostr ? makeNostr(d) : makeBroker(d);
+
 function ensureInternet(why) {
   if (internetStarted || !running) return;
   internetStarted = true;
   clearTimeout(internetTimer);
   log(`Internet: nối ${LIST.length} kênh báo tin (${why})`);
   if (!lanOk()) status(`Đang nối qua Internet (${why})…`);
-  brokers = LIST.map(d => d.ntfy ? makeNtfy(d) : makeBroker(d));
+  brokers = LIST.filter(d => !d.nostr || window.NostrTools).map(makeChannel);
   render();
 }
 
@@ -680,17 +731,18 @@ function loop() {
   }
   // 3. Kênh báo tin đang dùng: là đường chính thì ping dày, chỉ dự phòng thì ping thưa
   if (active && active.up) {
-    const main = !lanOk() && !p2pOpen();
-    const every = active.ntfy ? NTFY_PING_MS : main ? 2000 : PROBE_MS;
-    const dead = active.ntfy ? NTFY_DEAD_MS : main ? DEAD_MS : PROBE_MS * 2 + 2000;
+    const main = !lanOk() && !p2pOpen(), c = cfg(active);
+    const every = main ? c.mainPing : c.bakPing, dead = main ? c.mainDead : c.bakDead;
     if (now - active.lastPing >= every) { active.lastPing = now; ping(active); }
     if (active.lastPong && now - active.lastPong > dead) {
       log(`[${active.name}] không trả lời`); active.welcomed = false; active.state = 'không trả lời'; failover('kênh đang dùng không trả lời');
     }
-    if (active && active.ntfy) { const better = pickBest(active); if (better && !better.ntfy) setActive(better, 'MQTT đã thông lại'); }
+    // đang dùng kênh hạng thấp (Nostr/ntfy) mà kênh hạng cao (MQTT) đã thông lại -> đổi về
+    const better = active && pickBest(active);
+    if (better && score(better) < score(active) - 20000) setActive(better, `${better.name} đã thông lại`);
   }
   for (const b of brokers) {
-    if (b === active || !b.up || now - b.lastProbe < (b.ntfy ? NTFY_PROBE_MS : PROBE_MS)) continue;
+    if (b === active || !b.up || now - b.lastProbe < cfg(b).probe) continue;
     b.lastProbe = now;
     if (!b.welcomed || b.ntfy) { b.helloAt = now; sendVia(b, { type: 'hello' }); continue; }
     ping(b);
@@ -759,7 +811,7 @@ $('kill').onclick = () => { if (!active) return; killed = active; log(`Thử là
 $('revive').onclick = () => {
   if (!killed) return;
   const i = brokers.indexOf(killed), def = LIST.find(d => d.name === killed.name);
-  if (i >= 0) brokers[i] = def.ntfy ? makeNtfy(def) : makeBroker(def);
+  if (i >= 0) brokers[i] = makeChannel(def);
   log(`Bật lại ${killed.name}`); killed = null; render();
 };
 $('lanAdd').onclick = () => {

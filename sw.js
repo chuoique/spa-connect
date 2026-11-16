@@ -1,7 +1,7 @@
 // Service worker: giữ bản sao trang + thư viện trong máy.
 // Mở app sẽ dùng ngay bản trong máy (nhanh, chạy được cả khi GitHub Pages sập),
 // đồng thời tải bản mới ở nền cho lần mở sau.
-const CACHE = 'spa-v3';
+const CACHE = 'spa-v4';
 const FILES = [
   './',
   './index.html',
@@ -10,6 +10,7 @@ const FILES = [
   './apple-touch-icon.png',
   './lib/mqtt.min.js',
   './lib/forge.min.js',
+  './lib/nostr.bundle.js',
 ];
 
 self.addEventListener('install', e => {
