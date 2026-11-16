@@ -7,7 +7,7 @@
  */
 (() => {
 'use strict';
-const APP_VERSION = 'Spa 0.16';
+const APP_VERSION = 'Spa 0.17';
 const $ = s => document.querySelector(s);
 
 // ---------- tiện ích giao diện ----------
@@ -166,7 +166,7 @@ const TABS = {
 };
 const TAB = {
   appts: ['📅', 'Lịch hẹn'], mine: ['📅', 'Lịch của tôi'], customers: ['👤', 'Khách hàng'], invoices: ['🧾', 'Hóa đơn'],
-  services: ['💆', 'Dịch vụ'], staff: ['👥', 'Nhân viên'], devices: ['📱', 'Thiết bị'], reports: ['📊', 'Báo cáo'],
+  services: ['💆', 'Dịch vụ'], staff: ['👥', 'Tài khoản'], devices: ['📱', 'Thiết bị'], reports: ['📊', 'Báo cáo'],
   stock: ['📦', 'Kho'], cash: ['💵', 'Thu chi'], bonus: ['🎁', 'Thưởng'], mybonus: ['🎁', 'Thưởng của tôi'],
   system: ['⚙️', 'Hệ thống'], my: ['📅', 'Lịch của tôi'], book: ['➕', 'Đặt lịch'], profile: ['⭐', 'Thông tin'],
 };
@@ -587,15 +587,23 @@ async function vStaff(el) {
   const rows = (await api('staff.list', { customers: true })).sort((a, b) =>
     ((ORDER[a.role] ?? 9) - (ORDER[b.role] ?? 9)) || String(a.staff_code || '~').localeCompare(String(b.staff_code || '~'), 'vi', { numeric: true }) ||
     String(a.display_name || a.username).localeCompare(String(b.display_name || b.username), 'vi'));
+  // 2 nhóm: Nhân sự (tài khoản công ty) / Khách hàng - nút chọn liền khối với "+ Thêm tài khoản"
+  const isCust = S.accTab === 'customers';
+  const shown = rows.filter(u => (u.role === 'customer') === isCust);
+  const pickTab = t => { S.accTab = t; vStaff(el); };
   el.replaceChildren(h('div', { class: 'card' },
-    h('button', { class: 'btn', onclick: () => staffEdit({}) }, '+ Thêm tài khoản'),
-    h('p', { class: 'small muted' }, 'Mỗi người một tài khoản riêng. Khách hàng cũng có thể có tài khoản để tự đặt lịch.'),
-    h('div', { class: 'list' }, rows.map(u => h('div', { class: 'item', onclick: () => staffEdit(u) },
+    h('div', { class: 'seg' },
+      h('button', { class: isCust ? '' : 'on', onclick: () => pickTab('staff') }, 'Nhân sự', h('span', { class: 'n' }, rows.filter(u => u.role !== 'customer').length)),
+      h('button', { class: isCust ? 'on' : '', onclick: () => pickTab('customers') }, 'Khách hàng', h('span', { class: 'n' }, rows.filter(u => u.role === 'customer').length)),
+      h('button', { class: 'add', onclick: () => staffEdit(isCust ? { role: 'customer' } : {}) }, '+ Thêm tài khoản')),
+    h('p', { class: 'small muted' }, isCust ? 'Tài khoản khách hàng: khách tự đặt lịch, xem lịch và điểm của mình trên app.'
+      : 'Mỗi người một tài khoản riêng.'),
+    h('div', { class: 'list' }, !shown.length ? h('div', { class: 'empty' }, isCust ? 'Chưa có tài khoản khách hàng' : 'Chưa có tài khoản nhân sự') : shown.map(u => h('div', { class: 'item', onclick: () => staffEdit(u) },
       h('div', { class: 'l' }, RANK[u.role] ? '👑' : u.role === 'customer' ? '⭐' : '👤'), h('div', { class: 't' }, u.display_name || u.username),
       h('div', { class: 'r' }, h('span', { class: 'chip' }, ROLE[u.role] || u.role), u.active ? '' : [h('br'), h('span', { class: 'chip cancelled' }, 'Khóa')],
         u.has_pass === 0 ? [h('br'), h('span', { class: 'chip requested' }, 'Chưa có mật khẩu')] : ''),
       h('div', { class: 's' }, [u.staff_code, u.title, u.username, u.phone].filter(Boolean).join(' · '))))),
-    h('p', { class: 'small muted' }, 'Nhân viên nhập từ dữ liệu cũ chưa có mật khẩu: bấm vào để đặt mật khẩu khi người đó cần dùng app.')));
+    !isCust && h('p', { class: 'small muted' }, 'Nhân viên nhập từ dữ liệu cũ chưa có mật khẩu: bấm vào để đặt mật khẩu khi người đó cần dùng app.')));
 }
 function staffEdit(u) {
   const isNew = !u.id;
