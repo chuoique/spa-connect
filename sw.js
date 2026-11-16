@@ -1,7 +1,7 @@
 // Service worker: giữ bản sao trang + thư viện trong máy.
 // Mở app luôn dùng ngay bản trong máy (nhanh, chạy được cả khi mất Internet / GitHub sập),
 // đồng thời tải bản mới ở nền cho lần mở sau.
-const CACHE = 'spa-v21';
+const CACHE = 'spa-v22';
 const FILES = [
   './',
   './index.html',

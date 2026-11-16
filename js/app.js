@@ -7,7 +7,7 @@
  */
 (() => {
 'use strict';
-const APP_VERSION = 'Spa 0.15';
+const APP_VERSION = 'Spa 0.16';
 const $ = s => document.querySelector(s);
 
 // ---------- tiện ích giao diện ----------
@@ -1101,8 +1101,10 @@ async function vSystem(el) {
         S.me.role === 'sysadmin' && h('button', { class: 'btn ghost', onclick: trashSheet }, '🗑 Thùng rác (dữ liệu đã xóa)')));
     }
   }
-  cards.push(...techCards);
-  cards.push(h('details', { class: 'card' }, h('summary', {}, T('Nhật ký kỹ thuật')), h('pre', { class: 'log' }, S.log.slice(-120).map(T).join('\n'))));
+  if (myRole() !== 'customer') {   // khách hàng: không cần các mục kỹ thuật
+    cards.push(...techCards);
+    cards.push(h('details', { class: 'card' }, h('summary', {}, T('Nhật ký kỹ thuật')), h('pre', { class: 'log' }, S.log.slice(-120).map(T).join('\n'))));
+  }
   el.replaceChildren(...cards);
 }
 // Giao diện hiển thị: [tên tiếng Việt, tên tiếng Anh, màu thanh trạng thái]
