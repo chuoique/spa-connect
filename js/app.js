@@ -7,7 +7,7 @@
  */
 (() => {
 'use strict';
-const APP_VERSION = 'Spa 0.12';
+const APP_VERSION = 'Spa 0.13';
 const $ = s => document.querySelector(s);
 
 // ---------- tiện ích giao diện ----------
@@ -1007,7 +1007,7 @@ async function vSystem(el) {
   }).catch(() => {})) }, '⬇ Tải chứng chỉ của spa');
   const certSteps = isIOS ? 'iPhone/iPad: bấm "tải qua Safari" → Cho phép → Cài đặt → "Đã tải về hồ sơ" → Cài đặt → rồi Cài đặt chung → Giới thiệu → Cài đặt tin cậy chứng nhận → bật "Spa - chung chi goc…".'
     : isAndroid ? 'Android: bấm "Tải chứng chỉ của spa" → Cài đặt → Bảo mật → Mã hóa & thông tin xác thực → Cài đặt chứng chỉ → Chứng chỉ CA → chọn file spa-noi-bo.crt (trong Tải xuống) → Vẫn cài đặt.'
-    : isWin ? 'Windows: bấm "Tải chứng chỉ của spa" (file spa-noi-bo.crt vào thư mục Tải xuống, hoặc trên chính máy chủ mở data\\certs\\ca.crt) → mở file → "Install Certificate" (Cài đặt chứng chỉ) → Current User → "Place all certificates in the following store" → Browse → chọn "Trusted Root Certification Authorities" → OK → Next → Finish → Yes. Rồi đóng hẳn app / trình duyệt và mở lại.'
+    : isWin ? 'Windows: bấm "Tải chứng chỉ của spa" (file spa-noi-bo.crt vào thư mục Tải xuống, hoặc trên chính máy chủ mở data\\certs\\ca.crt) → mở file → "Install Certificate" (Cài đặt chứng chỉ) → Current User → KHÔNG để "Automatically select…", chọn "Place all certificates in the following store" (Đặt tất cả chứng chỉ vào kho sau) → Browse → chọn đúng "Trusted Root Certification Authorities" (Tổ chức cấp chứng chỉ GỐC đáng tin cậy — không phải "trung gian") → OK → Next → Finish → Windows hỏi "Do you want to install this certificate?" → Yes. Rồi đóng hẳn app / trình duyệt và mở lại.'
     : isMac ? 'Mac: bấm "Tải chứng chỉ của spa" → mở file (Keychain Access, chọn "login") → bấm đúp "Spa - chung chi goc" → Trust → "When using this certificate": Always Trust → đóng, nhập mật khẩu máy. Rồi mở lại trình duyệt.'
     : 'Tải file chứng chỉ rồi cài vào mục "chứng chỉ gốc tin cậy" của máy.';
   const cards = [
