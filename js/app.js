@@ -7,10 +7,13 @@
  */
 (() => {
 'use strict';
-const APP_VERSION = 'Spa 0.13';
+const APP_VERSION = 'Spa 0.14';
 const $ = s => document.querySelector(s);
 
 // ---------- tiện ích giao diện ----------
+// Ngôn ngữ: chữ hiện ra (con chữ, placeholder, title) đi qua T() -> tiếng Anh nếu đã chọn (js/i18n.js)
+const T = s => (window.I18N ? I18N.t(s) : s);
+const TR_ATTR = { placeholder: 1, title: 1, 'aria-label': 1, alt: 1 };
 function h(tag, attrs, ...kids) {
   const el = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs || {})) {
@@ -18,9 +21,9 @@ function h(tag, attrs, ...kids) {
     if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
     else if (k === 'class') el.className = v;
     else if (k === 'value') el.value = v;
-    else el.setAttribute(k, v === true ? '' : v);
+    else el.setAttribute(k, v === true ? '' : TR_ATTR[k] ? T(v) : v);
   }
-  for (const c of kids.flat(9)) if (c != null && c !== false) el.append(c instanceof Node ? c : String(c));
+  for (const c of kids.flat(9)) if (c != null && c !== false) el.append(c instanceof Node ? c : (typeof c === 'string' ? T(c) : String(c)));
   return el;
 }
 const money = n => (Math.round(n || 0)).toLocaleString('vi-VN') + ' đ';
@@ -43,7 +46,7 @@ const chip = st => h('span', { class: 'chip ' + st }, STATUS[st] || st);
 let toastTimer;
 function toast(msg, bad) {
   document.querySelectorAll('.toast').forEach(t => t.remove());
-  const t = h('div', { class: 'toast' + (bad ? ' bad' : '') }, msg);
+  const t = h('div', { class: 'toast' + (bad ? ' bad' : '') }, T(msg));
   document.body.append(t);
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.remove(), bad ? 4500 : 2200);
@@ -197,9 +200,12 @@ function screenMain() {
   if (!tabs.includes(S.tab)) S.tab = tabs[0];
   $('#app').replaceChildren(
     h('header', { class: 'top' }, h('div', { class: 'in' },
-      h('img', { class: 'hlogo', src: 'icon-192.png', alt: '' }),
+      h('img', { class: 'hlogo', src: 'logo-mnd.png', alt: 'MND' }),
       h('div', { class: 'grow' }, h('div', { class: 'spa' }, S.welcome ? S.welcome.spa_name : 'Spa'),
-        h('div', { class: 'who' }, `${S.me.display_name || S.me.username} · ${ROLE[S.me.role] || S.me.role}`)),
+        h('div', { class: 'who' }, `${S.me.display_name || S.me.username} · ${T(ROLE[S.me.role] || S.me.role)}`)),
+      h('div', { class: 'flags' }, ['vi', 'en'].map(l => h('button', {
+        class: 'flag' + (I18N.lang === l ? ' on' : ''), title: l === 'vi' ? 'Tiếng Việt' : 'English', 'aria-label': l === 'vi' ? 'Tiếng Việt' : 'English',
+        onclick: () => { if (I18N.lang !== l) { I18N.set(l); screenMain(); } } }, h('img', { src: I18N.flag(l), alt: l.toUpperCase() })))),
       myRole() !== 'customer' && h('button', { class: 'hbtn', title: 'Tìm nhanh', 'aria-label': 'Tìm nhanh', onclick: quickSearch }, '🔍'),
       myRole() !== 'customer' && h('button', { class: 'hbtn', title: 'Quét mã', 'aria-label': 'Quét mã', onclick: scanSheet }, '📷'),
       connBadge())),
@@ -283,7 +289,7 @@ function apptDetail(a, mineOnly) {
       can && h('button', { class: 'btn ghost', onclick: () => { close(); apptSheet(a); } }, 'Sửa'),
       a.customer_id && h('button', { class: 'btn ghost', onclick: () => { close(); customerDetail(a.customer_id); } }, 'Hồ sơ khách'),
       ['owner', 'technician'].includes(myRole()) && a.customer_id && h('button', { class: 'btn ghost', onclick: () => { close(); noteSheet(a.customer_id, a.id); } }, 'Ghi chú lịch trình'),
-      can && h('button', { class: 'btn bad', onclick: () => { if (window.confirm('Xóa lịch hẹn này?')) api('appointments.delete', { id: a.id }).then(() => { close(); go(S.view); }).catch(() => {}); } }, 'Xóa'))));
+      can && h('button', { class: 'btn bad', onclick: () => { if (window.confirm(T('Xóa lịch hẹn này?'))) api('appointments.delete', { id: a.id }).then(() => { close(); go(S.view); }).catch(() => {}); } }, 'Xóa'))));
 }
 function customerPicker(initial, onPick) {
   let chosen = initial;
@@ -372,7 +378,7 @@ async function customerDetail(id) {
       can && h('button', { class: 'btn', onclick: () => { close(); apptSheet({ customer_id: c.id, customer_name: c.name, start_at: Date.now() + 3600000 }); } }, 'Đặt lịch'),
       can && h('button', { class: 'btn ghost', onclick: () => { close(); customerEdit(c); } }, 'Sửa'),
       ['owner', 'technician'].includes(myRole()) && h('button', { class: 'btn ghost', onclick: () => { close(); noteSheet(c.id); } }, 'Ghi chú liệu trình'),
-      myRole() === 'owner' && h('button', { class: 'btn bad', onclick: () => { if (window.confirm('Xóa khách này?')) api('customers.delete', { id: c.id }).then(() => { close(); go('customers'); }).catch(() => {}); } }, 'Xóa')),
+      myRole() === 'owner' && h('button', { class: 'btn bad', onclick: () => { if (window.confirm(T('Xóa khách này?'))) api('customers.delete', { id: c.id }).then(() => { close(); go('customers'); }).catch(() => {}); } }, 'Xóa')),
     h('h3', {}, 'Lịch sử'),
     h('div', { class: 'list' }, (c.appointments || []).length ? c.appointments.map(a => h('div', { class: 'item' },
       h('div', { class: 'l' }, dmy(a.start_at).slice(0, 5)), h('div', { class: 't' }, a.service_name || '—'), h('div', { class: 'r' }, chip(a.status)),
@@ -571,12 +577,16 @@ function serviceEdit(s) {
     h('div', { class: 'row' }, h('div', { class: 'grow' }, field('Giá trải nghiệm', pr.price_trial)), h('div', { class: 'grow' }, field('Giá thẻ tiền', pr.price_card))),
     h('div', { class: 'row' }, h('div', { class: 'grow' }, field('Giá gói 4 buổi', pr.price_pkg4)), h('div', { class: 'grow' }, field('Giá gói 8 buổi', pr.price_pkg8))),
     field('Mô tả', f.description), field('Trạng thái', f.active)),
-    [btn, s.id && h('button', { class: 'btn bad', onclick: () => { if (window.confirm('Xóa dịch vụ này?')) api('services.delete', { id: s.id }).then(() => { close(); loadCaches(); go('services'); }).catch(() => {}); } }, 'Xóa')]);
+    [btn, s.id && h('button', { class: 'btn bad', onclick: () => { if (window.confirm(T('Xóa dịch vụ này?'))) api('services.delete', { id: s.id }).then(() => { close(); loadCaches(); go('services'); }).catch(() => {}); } }, 'Xóa')]);
 }
 
 // ---------- nhân viên / tài khoản ----------
 async function vStaff(el) {
-  const rows = await api('staff.list', { customers: true });
+  // Thứ tự theo chức: Chủ tịch HĐQT > Tổng giám đốc > Trợ lý TGĐ > Lễ tân > Kỹ thuật viên > Khách; cùng chức theo mã NV, tên
+  const ORDER = { chairman: 0, ceo: 1, owner: 2, reception: 3, technician: 4, customer: 5 };
+  const rows = (await api('staff.list', { customers: true })).sort((a, b) =>
+    ((ORDER[a.role] ?? 9) - (ORDER[b.role] ?? 9)) || String(a.staff_code || '~').localeCompare(String(b.staff_code || '~'), 'vi', { numeric: true }) ||
+    String(a.display_name || a.username).localeCompare(String(b.display_name || b.username), 'vi'));
   el.replaceChildren(h('div', { class: 'card' },
     h('button', { class: 'btn', onclick: () => staffEdit({}) }, '+ Thêm tài khoản'),
     h('p', { class: 'small muted' }, 'Mỗi người một tài khoản riêng. Khách hàng cũng có thể có tài khoản để tự đặt lịch.'),
@@ -613,12 +623,12 @@ function staffEdit(u) {
     field('Tên đăng nhập', f.username), field('Tên hiển thị', f.display_name), field('Vai trò', f.role), custBox,
     h('div', { class: 'row' }, h('div', { class: 'grow' }, field('Mã NV', f.staff_code)), h('div', { class: 'grow' }, field('Chức vụ', f.title))),
     field('Điện thoại', f.phone), field(isNew ? 'Mật khẩu (ít nhất 6 ký tự)' : 'Mật khẩu mới', f.password), field('Trạng thái', f.active)),
-    [btn, !isNew && u.id !== S.me.id && h('button', { class: 'btn bad', onclick: () => { if (window.confirm('Xóa tài khoản này?')) api('staff.delete', { id: u.id }).then(() => { close(); go('staff'); }).catch(() => {}); } }, 'Xóa')]);
+    [btn, !isNew && u.id !== S.me.id && h('button', { class: 'btn bad', onclick: () => { if (window.confirm(T('Xóa tài khoản này?'))) api('staff.delete', { id: u.id }).then(() => { close(); go('staff'); }).catch(() => {}); } }, 'Xóa')]);
 }
 
 // ---------- thiết bị ----------
 async function vDevices(el) {
-  const rows = await api('devices.list');
+  const rows = (await api('devices.list')).filter(d => !d.revoked);   // máy đã thu hồi: không hiện nữa
   const code = purpose => api('devices.pair_code', { purpose }).then(r => {
     const end = Date.now() + r.expires_min * 60000;
     const left = h('p', { class: 'small muted' });
@@ -671,7 +681,7 @@ async function vMy(el) {
   el.replaceChildren(h('div', { class: 'card' }, h('h2', {}, 'Lịch hẹn của tôi'),
     h('div', { class: 'list' }, rows.length ? rows.map(a => h('div', { class: 'item' },
       h('div', { class: 'l' }, hm(a.start_at)), h('div', { class: 't' }, a.service_name || 'Dịch vụ'), h('div', { class: 'r' }, chip(a.status),
-        a.start_at > Date.now() && ['requested', 'booked'].includes(a.status) ? [h('br'), h('button', { class: 'btn bad small', onclick: e => { e.stopPropagation(); if (window.confirm('Hủy lịch này?')) api('my.cancel', { id: a.id }).then(() => go('my')).catch(() => {}); } }, 'Hủy')] : ''),
+        a.start_at > Date.now() && ['requested', 'booked'].includes(a.status) ? [h('br'), h('button', { class: 'btn bad small', onclick: e => { e.stopPropagation(); if (window.confirm(T('Hủy lịch này?'))) api('my.cancel', { id: a.id }).then(() => go('my')).catch(() => {}); } }, 'Hủy')] : ''),
       h('div', { class: 's' }, dayLabel(a.start_at)))) : h('div', { class: 'empty' }, 'Chưa có lịch hẹn'))));
 }
 async function vBook(el) {
@@ -744,7 +754,7 @@ function productEdit(p) {
     h('div', { class: 'row' }, h('div', { class: 'grow' }, field('Giá bán', f.price)), h('div', { class: 'grow' }, field('Giá nhập', f.cost))),
     h('div', { class: 'row' }, h('div', { class: 'grow' }, field('Báo khi tồn dưới', f.min_stock)), !p.id && h('div', { class: 'grow' }, field('Tồn ban đầu', f.stock))),
     field('Trạng thái', f.active)),
-    [btn, p.id && h('button', { class: 'btn bad', onclick: () => { if (window.confirm('Xóa sản phẩm này?')) api('products.delete', { id: p.id }).then(() => { close(); go('stock'); }).catch(() => {}); } }, 'Xóa')]);
+    [btn, p.id && h('button', { class: 'btn bad', onclick: () => { if (window.confirm(T('Xóa sản phẩm này?'))) api('products.delete', { id: p.id }).then(() => { close(); go('stock'); }).catch(() => {}); } }, 'Xóa')]);
 }
 let stockRange = 'month';
 async function stockHistory() {
@@ -792,7 +802,7 @@ function cashEdit(c) {
     h('div', { class: 'row' }, h('div', { class: 'grow' }, field('Loại', f.kind)), h('div', { class: 'grow' }, field('Số tiền (đ)', f.amount))),
     field('Nội dung', f.content), h('div', { class: 'row' }, h('div', { class: 'grow' }, field('Nhóm', f.category)), h('div', { class: 'grow' }, field('Ngày', f.date))),
     h('div', { class: 'row' }, h('div', { class: 'grow' }, field('Người thực hiện', f.person)), h('div', { class: 'grow' }, field('Quỹ', f.fund))), field('Ghi chú', f.note)),
-    [btn, !isNew && h('button', { class: 'btn bad', onclick: () => { if (window.confirm('Xóa khoản này?')) api('cash.delete', { id: c.id }).then(() => { close(); go('cash'); }).catch(() => {}); } }, 'Xóa')]);
+    [btn, !isNew && h('button', { class: 'btn bad', onclick: () => { if (window.confirm(T('Xóa khoản này?'))) api('cash.delete', { id: c.id }).then(() => { close(); go('cash'); }).catch(() => {}); } }, 'Xóa')]);
 }
 
 // ---------- thưởng trị liệu ----------
@@ -1010,13 +1020,14 @@ async function vSystem(el) {
     : isWin ? 'Windows: bấm "Tải chứng chỉ của spa" (file spa-noi-bo.crt vào thư mục Tải xuống, hoặc trên chính máy chủ mở data\\certs\\ca.crt) → mở file → "Install Certificate" (Cài đặt chứng chỉ) → Current User → KHÔNG để "Automatically select…", chọn "Place all certificates in the following store" (Đặt tất cả chứng chỉ vào kho sau) → Browse → chọn đúng "Trusted Root Certification Authorities" (Tổ chức cấp chứng chỉ GỐC đáng tin cậy — không phải "trung gian") → OK → Next → Finish → Windows hỏi "Do you want to install this certificate?" → Yes. Rồi đóng hẳn app / trình duyệt và mở lại.'
     : isMac ? 'Mac: bấm "Tải chứng chỉ của spa" → mở file (Keychain Access, chọn "login") → bấm đúp "Spa - chung chi goc" → Trust → "When using this certificate": Always Trust → đóng, nhập mật khẩu máy. Rồi mở lại trình duyệt.'
     : 'Tải file chứng chỉ rồi cài vào mục "chứng chỉ gốc tin cậy" của máy.';
-  const cards = [
-    h('div', { class: 'card' }, h('h2', {}, 'Kết nối'), diagPanel(),
+  // 2 mục kỹ thuật: thu gọn (bấm tam giác mới mở), đặt dưới mục Máy chủ
+  const techCards = [
+    h('details', { class: 'card' }, h('summary', {}, T('Kết nối')), diagPanel(),
       h('div', { class: 'row' }, h('button', { class: 'btn ghost small', onclick: () => Conn.cutLan() }, 'Thử cắt / bật nội bộ'),
         h('button', { class: 'btn ghost small', onclick: () => Conn.cutP2P() }, 'Thử cắt P2P'),
         h('button', { class: 'btn ghost small', onclick: () => Conn.killChannel() }, 'Thử hỏng kênh'),
         h('button', { class: 'btn ghost small', onclick: () => Conn.reviveChannel() }, 'Bật lại kênh'))),
-    h('div', { class: 'card' }, h('h2', {}, 'Mạng nội bộ của spa'),
+    h('details', { class: 'card' }, h('summary', {}, T('Mạng nội bộ của spa')),
       h('p', { class: 'small muted' }, knownLan.length ? `Địa chỉ đã biết: ${knownLan.join(', ')}` : 'Chưa biết địa chỉ máy chủ nội bộ.'),
       h('div', { class: 'row' }, h('div', { class: 'grow' }, lanIn), h('button', { class: 'btn ghost small', onclick: () => { if (Conn.addLan(lanIn.value.trim())) { toast('Đã thêm'); go('system'); } else toast('Địa chỉ nội bộ dạng 192.168.x.x', true); } }, 'Thêm'),
         h('button', { class: 'btn ghost small', onclick: () => { Conn.findLan(); toast('Đang tìm…'); } }, 'Tìm ngay')),
@@ -1024,9 +1035,19 @@ async function vSystem(el) {
       !isIOS && h('div', { class: 'row' }, certBtn),
       h('div', { style: 'display:grid;gap:6px' }, certRows.length ? certRows : h('div', { class: 'small' }, 'Chưa biết địa chỉ máy chủ nội bộ.')),
       h('p', { class: 'small muted' }, certSteps)),
+  ];
+  // Giao diện (theme) + ngôn ngữ: lưu riêng trên máy này
+  let curTheme = 'auto';
+  try { curTheme = localStorage.getItem('theme') || 'auto'; } catch (e) {}
+  const themeSel = h('select', { onchange: e => applyTheme(e.target.value) },
+    Object.entries(THEMES).map(([v, l]) => h('option', { value: v, selected: v === curTheme }, I18N.lang === 'en' ? l[1] : l[0])));
+  const langSel = h('select', { onchange: e => { I18N.set(e.target.value); screenMain(); } },
+    h('option', { value: 'vi', selected: I18N.lang === 'vi' }, 'Tiếng Việt'), h('option', { value: 'en', selected: I18N.lang === 'en' }, 'English'));
+  const cards = [
     h('div', { class: 'card' }, h('h2', {}, 'Tài khoản'),
       h('dl', { class: 'kv' }, h('dt', {}, 'Người dùng'), h('dd', {}, `${S.me.display_name} (${S.me.username})`), h('dt', {}, 'Vai trò'), h('dd', {}, ROLE[S.me.role]),
         h('dt', {}, 'Máy này'), h('dd', {}, `${(S.welcome || {}).dev_name || ''} · ${id.dev || ''}`)),
+      h('div', { style: 'display:grid;grid-template-columns:1fr 1fr;gap:8px' }, field('Giao diện', themeSel), field('Ngôn ngữ', langSel)),
       h('div', { class: 'row' }, h('button', { class: 'btn ghost', onclick: changePassword }, 'Đổi mật khẩu'),
         h('button', { class: 'btn ghost', onclick: () => api('auth.logout').then(() => { S.me = null; screenLogin(); }).catch(() => {}) }, 'Đăng xuất'),
         h('button', { class: 'btn bad', onclick: unpair }, 'Gỡ ghép máy này'))),
@@ -1080,8 +1101,23 @@ async function vSystem(el) {
         S.me.role === 'sysadmin' && h('button', { class: 'btn ghost', onclick: trashSheet }, '🗑 Thùng rác (dữ liệu đã xóa)')));
     }
   }
-  cards.push(h('div', { class: 'card' }, h('details', {}, h('summary', {}, 'Nhật ký kỹ thuật'), h('pre', { class: 'log' }, S.log.slice(-120).join('\n')))));
+  cards.push(...techCards);
+  cards.push(h('details', { class: 'card' }, h('summary', {}, T('Nhật ký kỹ thuật')), h('pre', { class: 'log' }, S.log.slice(-120).join('\n'))));
   el.replaceChildren(...cards);
+}
+// Giao diện hiển thị: [tên tiếng Việt, tên tiếng Anh, màu thanh trạng thái]
+const THEMES = {
+  auto: ['Tự động (theo máy)', 'Automatic (device)', null], light: ['Sáng — vàng MND', 'Light — MND gold', '#8a6d24'],
+  dark: ['Tối — vàng MND', 'Dark — MND gold', '#1c1a17'], rose: ['Hồng phấn', 'Rose', '#b4506a'], jade: ['Xanh ngọc', 'Jade', '#21806a'],
+  ocean: ['Xanh biển', 'Ocean blue', '#2557a7'], lavender: ['Tím oải hương', 'Lavender', '#7650a8'], night: ['Đêm xanh', 'Night blue', '#161b22'],
+  contrast: ['Tương phản cao (dễ đọc)', 'High contrast', '#000000'],
+};
+function applyTheme(t) {
+  if (!THEMES[t]) t = 'auto';
+  if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem('theme', t); } catch (e) {}
+  const m = document.querySelector('meta[name=theme-color]');
+  if (m) m.setAttribute('content', THEMES[t][2] || '#8a6d24');
 }
 function changePassword() {
   const o = h('input', { type: 'password', autocomplete: 'current-password' }), n = h('input', { type: 'password', autocomplete: 'new-password' });
@@ -1091,7 +1127,7 @@ function changePassword() {
   close = sheet('Đổi mật khẩu', h('div', { style: 'display:grid;gap:10px' }, field('Mật khẩu hiện tại', o), field('Mật khẩu mới', n)), btn);
 }
 function unpair() {
-  if (!window.confirm('Gỡ ghép máy này? Muốn dùng lại phải xin mã ghép máy mới từ quản trị.')) return;
+  if (!window.confirm(T('Gỡ ghép máy này? Muốn dùng lại phải xin mã ghép máy mới từ quản trị.'))) return;
   Conn.forget(); S.me = null; S.welcome = null; screenPair('Đã gỡ ghép máy.');
 }
 
